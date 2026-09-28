@@ -463,6 +463,7 @@ export function createApp(
               code: z.string(),
               message: z.string(),
               questionIndex: z.number().nullable(),
+              questionKey: z.string().nullable(),
             }),
           ),
         }),
@@ -612,7 +613,7 @@ export function createApp(
     servers: [{ url: config.BETTER_AUTH_URL }],
   });
   app.get('/docs', apiReference({ url: '/openapi.json' }));
-  app.get('/docs/auth', apiReference({url:'/api/auth/open-api/generate-schema'}));
+  app.get('/docs/auth', apiReference({ url: '/api/auth/open-api/generate-schema' }));
   return { app, auth, attempts, admin, stats, leaderboard };
 }
 function categorySchemaForStats() {

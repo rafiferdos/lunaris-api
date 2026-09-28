@@ -38,6 +38,7 @@ suite('PostgreSQL API and concurrency regressions', () => {
   let now = new Date('2026-09-28T12:00:00Z');
   const events = createLeaderboardEvents(testUrl, createLogger(config));
   const runtime = createApp(db, config, events, () => now);
+  let adminCookie = '';
   let adminId = '',
     userId = '',
     cookie = '';
@@ -89,6 +90,7 @@ suite('PostgreSQL API and concurrency regressions', () => {
     now = new Date('2026-09-28T12:00:00Z');
     const admin = await register(`admin-${randomUUID()}@example.com`);
     adminId = admin.id;
+    adminCookie = admin.cookie;
     await db.update(user).set({ role: 'ADMIN' }).where(eq(user.id, adminId));
     const normal = await register(`member-${randomUUID()}@example.com`);
     userId = normal.id;
@@ -115,6 +117,118 @@ suite('PostgreSQL API and concurrency regressions', () => {
     ).toBe(403);
     expect((await request('/health/ready')).status).toBe(200);
     expect((await request('/openapi.json')).status).toBe(200);
+  });
+  it('serves admin contracts, publication/config updates and profile preferences', async () => {
+    expect(
+      (await request('/api/v1/admin/questions?limit=2', 'GET', undefined, adminCookie)).status,
+    ).toBe(200);
+    expect(
+      (await request('/api/v1/admin/questions/import/validate', 'POST', seedDocument, adminCookie))
+        .status,
+    ).toBe(200);
+    expect(
+      (await request('/api/v1/admin/questions/import', 'POST', seedDocument, adminCookie)).status,
+    ).toBe(200);
+    const [q] = await db.select().from(questions).limit(1);
+    expect(
+      (
+        await request(
+          `/api/v1/admin/questions/${q!.id}/publication`,
+          'PATCH',
+          { status: 'ARCHIVED' },
+          adminCookie,
+        )
+      ).status,
+    ).toBe(200);
+    const [config] = await db.select().from(configs).limit(1);
+    expect(
+      (
+        await request(
+          `/api/v1/admin/assessment-configs/${config!.id}`,
+          'PUT',
+          { ...config!.policy, durationSeconds: 900 },
+          adminCookie,
+        )
+      ).status,
+    ).toBe(200);
+    expect((await request('/api/v1/admin/audit', 'GET', undefined, adminCookie)).status).toBe(200);
+    expect((await request('/api/v1/me', 'PATCH', { displayName: 'Updated User' })).status).toBe(
+      200,
+    );
+    expect(
+      (await request('/api/v1/me/preferences', 'PATCH', { publicProfile: false, mode: 'dark' }))
+        .status,
+    ).toBe(200);
+    expect((await request('/api/v1/me', 'PATCH', { role: 'ADMIN' })).status).toBe(422);
+  });
+  it('paginates history and XP rankings without duplicates and binds ranking cursors to filters', async () => {
+    const service = createAttemptService(db, () => now, { daily: 5, weekly: 10 });
+    for (let i = 0; i < 3; i++) {
+      const a = await service.start(userId, {
+        topicSlug: 'javascript',
+        mode: 'EASY',
+        requestKey: randomUUID(),
+      });
+      await service.submit(userId, a.id);
+    }
+    const pageSchema = z.object({
+      data: z.array(z.object({ id: z.uuid() })),
+      meta: z.object({ nextCursor: z.string().nullable() }),
+    });
+    const first = pageSchema.parse(await (await request('/api/v1/history?limit=2')).json());
+    expect(first.data).toHaveLength(2);
+    const second = pageSchema.parse(
+      await (
+        await request(
+          `/api/v1/history?limit=2&cursor=${encodeURIComponent(first.meta.nextCursor!)}`,
+        )
+      ).json(),
+    );
+    expect(second.data).toHaveLength(1);
+    expect(new Set([...first.data, ...second.data].map((r) => r.id)).size).toBe(3);
+    const other = await service.start(adminId, {
+      topicSlug: 'javascript',
+      mode: 'EASY',
+      requestKey: randomUUID(),
+    });
+    await service.submit(adminId, other.id);
+    const rankings = pageSchema.parse(
+      await (await request('/api/v1/leaderboards?period=all_time&limit=1')).json(),
+    );
+    expect(rankings.meta.nextCursor).not.toBeNull();
+    const next = pageSchema.parse(
+      await (
+        await request(
+          `/api/v1/leaderboards?period=all_time&limit=1&cursor=${encodeURIComponent(rankings.meta.nextCursor!)}`,
+        )
+      ).json(),
+    );
+    expect(next.data[0]!.id).not.toBe(rankings.data[0]!.id);
+    expect(
+      (
+        await request(
+          `/api/v1/leaderboards?period=weekly&cursor=${encodeURIComponent(rankings.meta.nextCursor!)}`,
+        )
+      ).status,
+    ).toBe(400);
+  });
+  it('rejects database history edits and conflicting integrity sequence reuse', async () => {
+    const a = await start();
+    await runtime.attempts.event(userId, a.id, { sequence: 1, type: 'WINDOW_BLUR' });
+    await expect(
+      runtime.attempts.event(userId, a.id, { sequence: 1, type: 'TAB_HIDDEN' }),
+    ).rejects.toMatchObject({ code: 'EVENT_SEQUENCE_CONFLICT' });
+    await runtime.attempts.submit(userId, a.id);
+    await expect(
+      db.update(attempts).set({ status: 'IN_PROGRESS' }).where(eq(attempts.id, a.id)),
+    ).rejects.toThrow();
+    await expect(
+      db.update(xpLedger).set({ amount: 999 }).where(eq(xpLedger.attemptId, a.id)),
+    ).rejects.toThrow();
+    const [q] = await db.select().from(questions).limit(1);
+    await expect(
+      db.update(questions).set({ contentHash: 'changed' }).where(eq(questions.id, q!.id)),
+    ).rejects.toThrow();
   });
   it('completes an authenticated API flow, resumes sanitized questions, and finalizes once', async () => {
     const catalog = await request('/api/v1/assessments');
@@ -264,23 +378,21 @@ suite('PostgreSQL API and concurrency regressions', () => {
     expect((await runtime.attempts.get(userId, a.id)).questions).toEqual(a.questions);
   });
   it('uses the configured question count and rejects unavailable modes without consuming quota', async () => {
-    await db
-      .update(configs)
-      .set({
-        policy: {
-          questionCount: 100,
-          durationSeconds: 600,
-          distribution: { FOUNDATIONAL: 1, INTERMEDIATE: 0, ADVANCED: 0 },
-          editable: true,
-          backNavigation: true,
-          ranked: true,
-          enabled: true,
-          scoringVersion: 'scoring/v1',
-          xpVersion: 'xp/v1',
-          ratingVersion: 'rating/v1',
-          integrityVersion: 'integrity/v1',
-        },
-      });
+    await db.update(configs).set({
+      policy: {
+        questionCount: 100,
+        durationSeconds: 600,
+        distribution: { FOUNDATIONAL: 1, INTERMEDIATE: 0, ADVANCED: 0 },
+        editable: true,
+        backNavigation: true,
+        ranked: true,
+        enabled: true,
+        scoringVersion: 'scoring/v1',
+        xpVersion: 'xp/v1',
+        ratingVersion: 'rating/v1',
+        integrityVersion: 'integrity/v1',
+      },
+    });
     await expect(
       runtime.attempts.start(userId, {
         topicSlug: 'javascript',

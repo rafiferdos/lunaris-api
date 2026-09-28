@@ -7,7 +7,7 @@ import type { Database } from '../../db/client.js';
 import * as schema from '../../db/schema/auth.js';
 export function createAuth(db: Database, config: Config) {
   return betterAuth({
-    plugins: [openAPI({disableDefaultReference: true})],
+    plugins: [openAPI({ disableDefaultReference: true })],
     database: drizzleAdapter(db, { provider: 'pg', schema }),
     secret: config.BETTER_AUTH_SECRET,
     baseURL: config.BETTER_AUTH_URL,

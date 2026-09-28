@@ -115,18 +115,16 @@ export function createAttemptService(
       .set({ status, submittedAt: now, result, reason })
       .where(eq(attempts.id, a.id))
       .returning();
-    await tx
-      .insert(xpLedger)
-      .values({
-        userId: a.userId,
-        attemptId: a.id,
-        amount: result.xp,
-        topicId: a.topicId,
-        category: a.category,
-        mode: a.mode,
-        engineVersion: a.policy.xpVersion,
-        createdAt: now,
-      });
+    await tx.insert(xpLedger).values({
+      userId: a.userId,
+      attemptId: a.id,
+      amount: result.xp,
+      topicId: a.topicId,
+      category: a.category,
+      mode: a.mode,
+      engineVersion: a.policy.xpVersion,
+      createdAt: now,
+    });
     await tx.insert(ratingEvents).values(
       [
         { scope: 'overall', ...overallRating },
@@ -287,19 +285,17 @@ export function createAttemptService(
             expiresAt: new Date(+now + policy.durationSeconds * 1000),
           })
           .returning();
-        await tx
-          .insert(attemptQuestions)
-          .values(
-            chosen.map((q, position) => ({
-              attemptId: a!.id,
-              questionId: q.id,
-              position,
-              snapshot: {
-                ...q.content,
-                options: shuffle<Question['options'][number]>(q.content.options),
-              } as typeof q.content,
-            })),
-          );
+        await tx.insert(attemptQuestions).values(
+          chosen.map((q, position) => ({
+            attemptId: a!.id,
+            questionId: q.id,
+            position,
+            snapshot: {
+              ...q.content,
+              options: shuffle<Question['options'][number]>(q.content.options),
+            } as typeof q.content,
+          })),
+        );
         return dto(tx, a!);
       });
     },
@@ -413,13 +409,11 @@ export function createAttemptService(
           .from(integrityEvents)
           .where(eq(integrityEvents.attemptId, id));
         assert((count?.n ?? 0) < 2000, 429, 'EVENT_LIMIT', 'Event limit reached.');
-        await tx
-          .insert(integrityEvents)
-          .values({
-            attemptId: id,
-            sequence: input.sequence,
-            event: { ...input, serverReceivedAt: clock().toISOString() },
-          });
+        await tx.insert(integrityEvents).values({
+          attemptId: id,
+          sequence: input.sequence,
+          event: { ...input, serverReceivedAt: clock().toISOString() },
+        });
         const integrity = assessIntegrity((await attemptContent(tx, id)).events, a.mode);
         return integrity.autoSubmit ? finalize(tx, a, 'AUTO_SUBMITTED', integrity.reason) : a;
       }),

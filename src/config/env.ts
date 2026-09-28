@@ -26,7 +26,14 @@ export const envSchema = z
       });
     for (const key of ['FRONTEND_ORIGIN', 'BETTER_AUTH_URL'] as const) {
       const u = new URL(v[key]);
-      if (u.username || u.password || u.search || u.hash || u.pathname !== '/')
+      if (
+        !['http:', 'https:'].includes(u.protocol) ||
+        u.username ||
+        u.password ||
+        u.search ||
+        u.hash ||
+        u.pathname !== '/'
+      )
         c.addIssue({
           code: 'custom',
           path: [key],

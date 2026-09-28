@@ -17,6 +17,23 @@ function canonical(value: unknown): string {
   return JSON.stringify(value);
 }
 export const contentHash = (q: unknown) => createHash('sha256').update(canonical(q)).digest('hex');
+function questionKeyAt(document: unknown, index: number | null): string | null {
+  if (
+    index === null ||
+    !document ||
+    typeof document !== 'object' ||
+    !('questions' in document) ||
+    !Array.isArray(document.questions)
+  )
+    return null;
+  const value: unknown = document.questions[index];
+  return value &&
+    typeof value === 'object' &&
+    'questionKey' in value &&
+    typeof value.questionKey === 'string'
+    ? value.questionKey
+    : null;
+}
 export function createAdminService(db: Database) {
   async function inspect(tx: Database | Transaction, document: unknown) {
     const parsed = importSchema.safeParse(document);
@@ -30,6 +47,7 @@ export function createAdminService(db: Database) {
           code: i.code,
           message: i.message,
           questionIndex: typeof i.path[1] === 'number' ? i.path[1] : null,
+          questionKey: questionKeyAt(document, typeof i.path[1] === 'number' ? i.path[1] : null),
         })),
         records: [] as { question: Question; topicId: string; hash: string; exists: boolean }[],
       };
@@ -45,8 +63,13 @@ export function createAdminService(db: Database) {
           ...new Set(parsed.data.questions.map((q) => q.questionKey)),
         ]),
       );
-    const errors: { path: string; code: string; message: string; questionIndex: number | null }[] =
-      [];
+    const errors: {
+      path: string;
+      code: string;
+      message: string;
+      questionKey: string | null;
+      questionIndex: number | null;
+    }[] = [];
     const records: { question: Question; topicId: string; hash: string; exists: boolean }[] = [];
     parsed.data.questions.forEach((q, i) => {
       const topic = topicRows.find((t) => t.slug === q.topicSlug),
@@ -58,6 +81,7 @@ export function createAdminService(db: Database) {
         errors.push({
           path: `questions.${i}.topicSlug`,
           questionIndex: i,
+          questionKey: q.questionKey,
           code: 'UNKNOWN_TOPIC_OR_CATEGORY',
           message: `${q.questionKey}: topic/category mismatch.`,
         });
@@ -65,6 +89,7 @@ export function createAdminService(db: Database) {
         errors.push({
           path: `questions.${i}.version`,
           questionIndex: i,
+          questionKey: q.questionKey,
           code: 'CONFLICTING_VERSION',
           message: `${q.questionKey}: existing version has different content. Create a new version.`,
         });
@@ -104,19 +129,17 @@ export function createAdminService(db: Database) {
           );
         const rows = report.records.filter((r) => !r.exists);
         if (rows.length)
-          await tx
-            .insert(questions)
-            .values(
-              rows.map(({ question: q, topicId, hash }) => ({
-                topicId,
-                questionKey: q.questionKey,
-                version: q.version,
-                difficulty: q.difficulty,
-                status: q.status,
-                content: q,
-                contentHash: hash,
-              })),
-            );
+          await tx.insert(questions).values(
+            rows.map(({ question: q, topicId, hash }) => ({
+              topicId,
+              questionKey: q.questionKey,
+              version: q.version,
+              difficulty: q.difficulty,
+              status: q.status,
+              content: q,
+              contentHash: hash,
+            })),
+          );
         const [batch] = await tx
           .insert(importBatches)
           .values({
@@ -126,14 +149,12 @@ export function createAdminService(db: Database) {
             existing: report.alreadyExists,
           })
           .returning();
-        await tx
-          .insert(auditLogs)
-          .values({
-            adminId,
-            action: 'QUESTION_IMPORT',
-            target: batch!.id,
-            metadata: { created: report.created, alreadyExists: report.alreadyExists },
-          });
+        await tx.insert(auditLogs).values({
+          adminId,
+          action: 'QUESTION_IMPORT',
+          target: batch!.id,
+          metadata: { created: report.created, alreadyExists: report.alreadyExists },
+        });
         return { batchId: batch!.id, created: report.created, alreadyExists: report.alreadyExists };
       });
     },
@@ -152,14 +173,12 @@ export function createAdminService(db: Database) {
           .set({ status })
           .where(eq(questions.id, id))
           .returning();
-        await tx
-          .insert(auditLogs)
-          .values({
-            adminId,
-            action: `QUESTION_${status}`,
-            target: id,
-            metadata: { previousStatus: old.status },
-          });
+        await tx.insert(auditLogs).values({
+          adminId,
+          action: `QUESTION_${status}`,
+          target: id,
+          metadata: { previousStatus: old.status },
+        });
         return { id: updated!.id, status: updated!.status };
       });
     },
