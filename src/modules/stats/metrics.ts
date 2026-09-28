@@ -1,0 +1,11 @@
+import type { Metrics,Result } from '../../db/schema/domain.js';
+export const emptyMetrics=():Metrics=>({totalXp:0,rating:1000,assessmentCount:0,ratedCount:0,questionsAnswered:0,averageNormalizedScore:0,accuracyPercent:null,answerQualityPercent:null,averageIntegrity:0,currentStreak:0,longestStreak:0,bestScore:0,latestScore:0,lastAssessmentAt:null,objectiveCount:0,objectiveCorrect:0,weightedCount:0,weightedQualitySum:0});
+export function applyResult(old:Metrics,result:Result,rating:number,at:Date):Metrics{
+ const count=old.assessmentCount+1;const objective=result.reviews.filter(r=>r.objective),weighted=result.reviews.filter(r=>!r.objective);
+ const objectiveCount=old.objectiveCount+objective.length,objectiveCorrect=old.objectiveCorrect+objective.filter(r=>r.outcome==='CORRECT').length;
+ const weightedCount=old.weightedCount+weighted.length,weightedQualitySum=old.weightedQualitySum+weighted.reduce((s,r)=>s+r.quality,0);
+ const day=at.toISOString().slice(0,10),lastDay=old.lastAssessmentAt?.slice(0,10);
+ const streak=day===lastDay?old.currentStreak:lastDay&&Date.parse(day)-Date.parse(lastDay)===86400000?old.currentStreak+1:1;
+ return {totalXp:old.totalXp+result.xp,rating,assessmentCount:count,ratedCount:old.ratedCount+Number(result.rankEligible),questionsAnswered:old.questionsAnswered+result.reviews.filter(r=>r.selected.length).length,averageNormalizedScore:(old.averageNormalizedScore*old.assessmentCount+result.normalizedScore)/count,accuracyPercent:objectiveCount?objectiveCorrect/objectiveCount*100:null,answerQualityPercent:weightedCount?weightedQualitySum/weightedCount*100:null,averageIntegrity:(old.averageIntegrity*old.assessmentCount+result.integrity)/count,currentStreak:streak,longestStreak:Math.max(old.longestStreak,streak),bestScore:Math.max(old.bestScore,result.normalizedScore),latestScore:result.normalizedScore,lastAssessmentAt:at.toISOString(),objectiveCount,objectiveCorrect,weightedCount,weightedQualitySum};
+}
+export function visibleMetrics(data:Metrics,now:Date){const {objectiveCount:_oc,objectiveCorrect:_or,weightedCount:_wc,weightedQualitySum:_ws,...visible}=data;return {...visible,currentStreak:data.lastAssessmentAt&&Date.parse(now.toISOString().slice(0,10))-Date.parse(data.lastAssessmentAt.slice(0,10))<=86400000?data.currentStreak:0};}
