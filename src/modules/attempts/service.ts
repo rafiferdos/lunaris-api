@@ -1,8 +1,8 @@
-import { and,eq,gte,sql,desc,inArray } from 'drizzle-orm';
+import { and,eq,gte,sql,desc } from 'drizzle-orm';
 import type { Database,Transaction } from '../../db/client.js';
 import { attempts,attemptQuestions,answers,questions,topics,configs,integrityEvents,metrics,topicMetrics,xpLedger,ratingEvents } from '../../db/schema/domain.js';
 import type { Result } from '../../db/schema/domain.js';
-import { publicQuestion,type Mode } from '../questions/schema.js';
+import { publicQuestion,type Mode,type Question } from '../questions/schema.js';
 import { policySchema,quotaPolicy } from '../assessments/policy.js';
 import { selectQuestions,shuffle } from '../assessments/selection.js';
 import { assert } from '../../core/errors.js';
@@ -49,7 +49,7 @@ export function createAttemptService(db:Database,clock:()=>Date=()=>new Date(),l
  const pool=await tx.select().from(questions).where(and(eq(questions.topicId,topic.id),eq(questions.status,'PUBLISHED'))).orderBy(desc(questions.version));const latest=[...new Map(pool.toReversed().map(q=>[q.questionKey,q])).values()];assert(latest.length>=policy.questionCount,409,'INSUFFICIENT_QUESTIONS','Not enough published questions for this mode.');
  const recent=await tx.select({id:attemptQuestions.questionId}).from(attemptQuestions).innerJoin(attempts,eq(attempts.id,attemptQuestions.attemptId)).where(and(eq(attempts.userId,userId),gte(attempts.startedAt,new Date(+clock()-30*86400000))));
  const chosen=selectQuestions(latest,policy,new Set(recent.map(r=>r.id)));const now=clock();const [a]=await tx.insert(attempts).values({userId,topicId:topic.id,category:topic.category,mode:input.mode,requestKey:input.requestKey,policy,startedAt:now,expiresAt:new Date(+now+policy.durationSeconds*1000)}).returning();
- await tx.insert(attemptQuestions).values(chosen.map((q,position)=>({attemptId:a!.id,questionId:q.id,position,snapshot:{...q.content,options:shuffle(q.content.options)} as typeof q.content})));
+ await tx.insert(attemptQuestions).values(chosen.map((q,position)=>({attemptId:a!.id,questionId:q.id,position,snapshot:{...q.content,options:shuffle<Question["options"][number]>(q.content.options)} as typeof q.content})));
  return dto(tx,a!);
  });},
  get:(userId:string,id:string)=>run(userId,id,async(_tx,a)=>a),

@@ -1,4 +1,4 @@
-import { and,eq,sql } from 'drizzle-orm';
+import { eq,sql } from 'drizzle-orm';
 import type { Database } from '../../db/client.js';
 import { topics,configs,questions,topicMetrics } from '../../db/schema/domain.js';
 import { scoring } from '../scoring/v1.js';
