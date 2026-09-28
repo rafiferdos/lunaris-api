@@ -1,15 +1,147 @@
-import { and,eq,desc,lt,lte,gte,or,sql } from 'drizzle-orm';
+import { and, eq, desc, lt, lte, gte, or, sql } from 'drizzle-orm';
 import { z } from '@hono/zod-openapi';
 import type { Database } from '../../db/client.js';
-import { attempts,topics,metrics,topicMetrics,ratingEvents } from '../../db/schema/domain.js';
-import { encodeCursor,decodeCursor,cursorSchema } from '../../core/cursor.js';
-import { emptyMetrics,visibleMetrics } from './metrics.js';
-import { categorySchema,modeSchema } from '../questions/schema.js';
-export const historyQuery=z.object({limit:z.coerce.number().int().min(1).max(100).default(20),cursor:cursorSchema,topic:z.string().regex(/^[a-z0-9-]{2,80}$/).optional(),category:categorySchema.optional(),mode:modeSchema.optional(),from:z.iso.datetime().optional(),to:z.iso.datetime().optional(),status:z.enum(['IN_PROGRESS','SUBMITTED','AUTO_SUBMITTED','EXPIRED','INVALIDATED']).optional()});
-export function createStatsService(db:Database){return {
- async history(userId:string,input:z.infer<typeof historyQuery>){const c=decodeCursor(input.cursor,z.object({at:z.iso.datetime(),id:z.uuid()}));const rows=await db.select({attempt:attempts,topic:topics}).from(attempts).innerJoin(topics,eq(topics.id,attempts.topicId)).where(and(eq(attempts.userId,userId),input.topic?eq(topics.slug,input.topic):undefined,input.category?eq(attempts.category,input.category):undefined,input.mode?eq(attempts.mode,input.mode):undefined,input.status?eq(attempts.status,input.status):undefined,input.from?gte(attempts.startedAt,new Date(input.from)):undefined,input.to?lte(attempts.startedAt,new Date(input.to)):undefined,c?or(lt(attempts.startedAt,new Date(c.at)),and(eq(attempts.startedAt,new Date(c.at)),lt(attempts.id,c.id))):undefined)).orderBy(desc(attempts.startedAt),desc(attempts.id)).limit(input.limit+1);const page=rows.slice(0,input.limit),last=page.at(-1);return {data:page.map(({attempt:a,topic:t})=>({id:a.id,date:a.startedAt.toISOString(),topic:t.slug,topicName:t.name,category:a.category,mode:a.mode,status:a.status,rawScore:a.result?.rawScore??null,normalizedScore:a.result?.normalizedScore??null,accuracyPercent:a.result?.accuracyPercent??null,xp:a.result?.xp??null,ratingChange:a.result?.ratingChange??null,durationSeconds:a.result?.durationSeconds??null,integrity:a.result?.integrity??null})),meta:{nextCursor:rows.length>input.limit&&last?encodeCursor({at:last.attempt.startedAt.toISOString(),id:last.attempt.id}):null}};},
- async overview(userId:string){const [row]=await db.select().from(metrics).where(eq(metrics.userId,userId));return visibleMetrics(row?.data??emptyMetrics(),new Date());},
- async topics(userId:string){return (await db.select({topic:topics,data:topicMetrics.data}).from(topicMetrics).innerJoin(topics,eq(topics.id,topicMetrics.topicId)).where(eq(topicMetrics.userId,userId))).map(r=>({topic:r.topic.slug,name:r.topic.name,category:r.topic.category,...visibleMetrics(r.data,new Date()),mastery:r.data.averageNormalizedScore,improvement:r.data.rating-1000}));},
- async performance(userId:string){const [grouped,trend]=await Promise.all([db.select({category:attempts.category,mode:attempts.mode,count:sql<number>`count(*)::int`,performance:sql<number>`avg((${attempts.result}->>'normalizedScore')::float)`,accuracy:sql<number|null>`avg((${attempts.result}->>'accuracyPercent')::float)`,answerQuality:sql<number|null>`avg((${attempts.result}->>'answerQualityPercent')::float)`}).from(attempts).where(and(eq(attempts.userId,userId),sql`${attempts.result} is not null`)).groupBy(attempts.category,attempts.mode),db.select({at:ratingEvents.createdAt,rating:ratingEvents.after,delta:ratingEvents.delta}).from(ratingEvents).where(and(eq(ratingEvents.userId,userId),eq(ratingEvents.scope,'overall'))).orderBy(desc(ratingEvents.createdAt),desc(ratingEvents.id)).limit(180)]);return {groups:grouped,ratingHistory:trend.toReversed().map(r=>({...r,at:r.at.toISOString()}))};},
- async activity(userId:string){const rows=await db.select({date:sql<string>`to_char(${attempts.submittedAt} at time zone 'UTC','YYYY-MM-DD')`,count:sql<number>`count(*)::int`}).from(attempts).where(and(eq(attempts.userId,userId),gte(attempts.submittedAt,new Date(Date.now()-365*86400000)))).groupBy(sql`to_char(${attempts.submittedAt} at time zone 'UTC','YYYY-MM-DD')`).orderBy(sql`1`);return {days:rows,...await this.overview(userId)};},
-};}
+import { attempts, topics, metrics, topicMetrics, ratingEvents } from '../../db/schema/domain.js';
+import { encodeCursor, decodeCursor, cursorSchema } from '../../core/cursor.js';
+import { emptyMetrics, visibleMetrics } from './metrics.js';
+import { categorySchema, modeSchema } from '../questions/schema.js';
+export const historyQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  cursor: cursorSchema,
+  topic: z
+    .string()
+    .regex(/^[a-z0-9-]{2,80}$/)
+    .optional(),
+  category: categorySchema.optional(),
+  mode: modeSchema.optional(),
+  from: z.iso.datetime().optional(),
+  to: z.iso.datetime().optional(),
+  status: z
+    .enum(['IN_PROGRESS', 'SUBMITTED', 'AUTO_SUBMITTED', 'EXPIRED', 'INVALIDATED'])
+    .optional(),
+});
+export function createStatsService(db: Database) {
+  return {
+    async history(userId: string, input: z.infer<typeof historyQuery>) {
+      const c = decodeCursor(input.cursor, z.object({ at: z.iso.datetime(), id: z.uuid() }));
+      const rows = await db
+        .select({ attempt: attempts, topic: topics })
+        .from(attempts)
+        .innerJoin(topics, eq(topics.id, attempts.topicId))
+        .where(
+          and(
+            eq(attempts.userId, userId),
+            input.topic ? eq(topics.slug, input.topic) : undefined,
+            input.category ? eq(attempts.category, input.category) : undefined,
+            input.mode ? eq(attempts.mode, input.mode) : undefined,
+            input.status ? eq(attempts.status, input.status) : undefined,
+            input.from ? gte(attempts.startedAt, new Date(input.from)) : undefined,
+            input.to ? lte(attempts.startedAt, new Date(input.to)) : undefined,
+            c
+              ? or(
+                  lt(attempts.startedAt, new Date(c.at)),
+                  and(eq(attempts.startedAt, new Date(c.at)), lt(attempts.id, c.id)),
+                )
+              : undefined,
+          ),
+        )
+        .orderBy(desc(attempts.startedAt), desc(attempts.id))
+        .limit(input.limit + 1);
+      const page = rows.slice(0, input.limit),
+        last = page.at(-1);
+      return {
+        data: page.map(({ attempt: a, topic: t }) => ({
+          id: a.id,
+          date: a.startedAt.toISOString(),
+          topic: t.slug,
+          topicName: t.name,
+          category: a.category,
+          mode: a.mode,
+          status: a.status,
+          rawScore: a.result?.rawScore ?? null,
+          normalizedScore: a.result?.normalizedScore ?? null,
+          accuracyPercent: a.result?.accuracyPercent ?? null,
+          xp: a.result?.xp ?? null,
+          ratingChange: a.result?.ratingChange ?? null,
+          durationSeconds: a.result?.durationSeconds ?? null,
+          integrity: a.result?.integrity ?? null,
+        })),
+        meta: {
+          nextCursor:
+            rows.length > input.limit && last
+              ? encodeCursor({ at: last.attempt.startedAt.toISOString(), id: last.attempt.id })
+              : null,
+        },
+      };
+    },
+    async overview(userId: string) {
+      const [row] = await db.select().from(metrics).where(eq(metrics.userId, userId));
+      return visibleMetrics(row?.data ?? emptyMetrics(), new Date());
+    },
+    async topics(userId: string) {
+      return (
+        await db
+          .select({ topic: topics, data: topicMetrics.data })
+          .from(topicMetrics)
+          .innerJoin(topics, eq(topics.id, topicMetrics.topicId))
+          .where(eq(topicMetrics.userId, userId))
+      ).map((r) => ({
+        topic: r.topic.slug,
+        name: r.topic.name,
+        category: r.topic.category,
+        ...visibleMetrics(r.data, new Date()),
+        mastery: r.data.averageNormalizedScore,
+        improvement: r.data.rating - 1000,
+      }));
+    },
+    async performance(userId: string) {
+      const [grouped, trend] = await Promise.all([
+        db
+          .select({
+            category: attempts.category,
+            mode: attempts.mode,
+            count: sql<number>`count(*)::int`,
+            performance: sql<number>`avg((${attempts.result}->>'normalizedScore')::float)`,
+            accuracy: sql<number | null>`avg((${attempts.result}->>'accuracyPercent')::float)`,
+            answerQuality: sql<
+              number | null
+            >`avg((${attempts.result}->>'answerQualityPercent')::float)`,
+          })
+          .from(attempts)
+          .where(and(eq(attempts.userId, userId), sql`${attempts.result} is not null`))
+          .groupBy(attempts.category, attempts.mode),
+        db
+          .select({
+            at: ratingEvents.createdAt,
+            rating: ratingEvents.after,
+            delta: ratingEvents.delta,
+          })
+          .from(ratingEvents)
+          .where(and(eq(ratingEvents.userId, userId), eq(ratingEvents.scope, 'overall')))
+          .orderBy(desc(ratingEvents.createdAt), desc(ratingEvents.id))
+          .limit(180),
+      ]);
+      return {
+        groups: grouped,
+        ratingHistory: trend.toReversed().map((r) => ({ ...r, at: r.at.toISOString() })),
+      };
+    },
+    async activity(userId: string) {
+      const rows = await db
+        .select({
+          date: sql<string>`to_char(${attempts.submittedAt} at time zone 'UTC','YYYY-MM-DD')`,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(attempts)
+        .where(
+          and(
+            eq(attempts.userId, userId),
+            gte(attempts.submittedAt, new Date(Date.now() - 365 * 86400000)),
+          ),
+        )
+        .groupBy(sql`to_char(${attempts.submittedAt} at time zone 'UTC','YYYY-MM-DD')`)
+        .orderBy(sql`1`);
+      return { days: rows, ...(await this.overview(userId)) };
+    },
+  };
+}

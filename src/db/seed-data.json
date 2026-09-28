@@ -193,9 +193,7 @@
           }
         ],
         "explanation": "var is function-scoped. Each callback reads the same i after the loop has completed, when it is 3.",
-        "tags": [
-          "Closures"
-        ],
+        "tags": ["Closures"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -230,9 +228,7 @@
           }
         ],
         "explanation": "map and filter create new arrays. sort and splice change the original array.",
-        "tags": [
-          "Arrays"
-        ],
+        "tags": ["Arrays"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -267,9 +263,7 @@
           }
         ],
         "explanation": "Promise reactions are microtasks. They run after synchronous execution and before the next task.",
-        "tags": [
-          "Async behavior"
-        ],
+        "tags": ["Async behavior"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -304,9 +298,7 @@
           }
         ],
         "explanation": "Object.is treats NaN as equal to itself, unlike strict equality.",
-        "tags": [
-          "Equality"
-        ],
+        "tags": ["Equality"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -341,9 +333,7 @@
           }
         ],
         "explanation": "const protects the binding, not the properties of the value it refers to.",
-        "tags": [
-          "Scope"
-        ],
+        "tags": ["Scope"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -378,9 +368,7 @@
           }
         ],
         "explanation": "unknown is safe because operations require narrowing to a known type.",
-        "tags": [
-          "Narrowing"
-        ],
+        "tags": ["Narrowing"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -415,9 +403,7 @@
           }
         ],
         "explanation": "Runtime checks let TypeScript refine the possibilities for a value.",
-        "tags": [
-          "Unions"
-        ],
+        "tags": ["Unions"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -452,9 +438,7 @@
           }
         ],
         "explanation": "Generics express relationships between types without discarding information.",
-        "tags": [
-          "Generics"
-        ],
+        "tags": ["Generics"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -489,9 +473,7 @@
           }
         ],
         "explanation": "TypeScript types disappear at runtime. Validate external values before trusting them.",
-        "tags": [
-          "Validation"
-        ],
+        "tags": ["Validation"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -526,9 +508,7 @@
           }
         ],
         "explanation": "If every variant is handled, the remaining type is never; this catches missed cases.",
-        "tags": [
-          "Exhaustiveness"
-        ],
+        "tags": ["Exhaustiveness"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -563,9 +543,7 @@
           }
         ],
         "explanation": "Stable keys let React associate state with the correct item when a list changes.",
-        "tags": [
-          "Reconciliation"
-        ],
+        "tags": ["Reconciliation"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -600,9 +578,7 @@
           }
         ],
         "explanation": "Dependencies include reactive values read by an effect, not fixed module values.",
-        "tags": [
-          "Effects"
-        ],
+        "tags": ["Effects"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -637,9 +613,7 @@
           }
         ],
         "explanation": "Functional updaters receive the pending state and work correctly with batched updates.",
-        "tags": [
-          "State"
-        ],
+        "tags": ["State"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -674,9 +648,7 @@
           }
         ],
         "explanation": "Calculate derived data during rendering instead of synchronizing redundant state.",
-        "tags": [
-          "Rendering"
-        ],
+        "tags": ["Rendering"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -711,9 +683,7 @@
           }
         ],
         "explanation": "A common owner gives both siblings a single source of truth.",
-        "tags": [
-          "Composition"
-        ],
+        "tags": ["Composition"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -748,9 +718,7 @@
           }
         ],
         "explanation": "Interactive browser handlers require a Client Component.",
-        "tags": [
-          "Rendering"
-        ],
+        "tags": ["Rendering"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -785,9 +753,7 @@
           }
         ],
         "explanation": "Secrets must remain behind the server boundary, never in browser bundles.",
-        "tags": [
-          "Security"
-        ],
+        "tags": ["Security"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -822,9 +788,7 @@
           }
         ],
         "explanation": "Loading boundaries keep the interface responsive while slower content resolves.",
-        "tags": [
-          "Loading"
-        ],
+        "tags": ["Loading"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -859,9 +823,7 @@
           }
         ],
         "explanation": "A clear not-found page communicates the problem and gives a path back.",
-        "tags": [
-          "Routing"
-        ],
+        "tags": ["Routing"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -896,9 +858,7 @@
           }
         ],
         "explanation": "External values require runtime validation. Client validation improves UX but is not a security boundary.",
-        "tags": [
-          "Validation"
-        ],
+        "tags": ["Validation"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -933,9 +893,7 @@
           }
         ],
         "explanation": "A private, specific conversation addresses the behavior while leaving room for context.",
-        "tags": [
-          "Active listening"
-        ],
+        "tags": ["Active listening"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -970,9 +928,7 @@
           }
         ],
         "explanation": "Clear tradeoffs help the client make an informed decision without hidden commitments.",
-        "tags": [
-          "Expectations"
-        ],
+        "tags": ["Expectations"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -1007,9 +963,7 @@
           }
         ],
         "explanation": "Adapt to the audience and verify shared understanding.",
-        "tags": [
-          "Clarity"
-        ],
+        "tags": ["Clarity"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -1044,9 +998,7 @@
           }
         ],
         "explanation": "Curiosity and shared evidence move disagreement toward a constructive decision.",
-        "tags": [
-          "Conflict resolution"
-        ],
+        "tags": ["Conflict resolution"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       },
@@ -1081,9 +1033,7 @@
           }
         ],
         "explanation": "Early, actionable communication gives others time to adapt.",
-        "tags": [
-          "Transparency"
-        ],
+        "tags": ["Transparency"],
         "estimatedTimeSeconds": 60,
         "status": "PUBLISHED"
       }

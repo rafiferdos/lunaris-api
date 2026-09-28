@@ -1,35 +1,307 @@
-import { pgTable,uuid,text,timestamp,integer,jsonb,boolean,index,uniqueIndex,primaryKey,check,pgEnum } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  text,
+  timestamp,
+  integer,
+  jsonb,
+  boolean,
+  index,
+  uniqueIndex,
+  primaryKey,
+  check,
+  pgEnum,
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { user } from './auth.js';
-import type { Question,Mode,Category } from '../../modules/questions/schema.js';
+import type { Question, Mode, Category } from '../../modules/questions/schema.js';
 import type { Policy } from '../../modules/assessments/policy.js';
 import type { IntegrityEvent } from '../../modules/integrity/v1.js';
 import type { score } from '../../modules/scoring/v1.js';
-const id=()=>uuid('id').primaryKey().defaultRandom();
-const created=()=>timestamp('created_at',{withTimezone:true}).notNull().defaultNow();
-const owner=()=>uuid('user_id').notNull().references(()=>user.id,{onDelete:'cascade'});
-export const categoryEnum=pgEnum('category',['TECHNICAL','INTERPERSONAL']);
-export const modeEnum=pgEnum('assessment_mode',['EASY','MEDIUM','COMPETITIVE']);
-export const difficultyEnum=pgEnum('question_difficulty',['FOUNDATIONAL','INTERMEDIATE','ADVANCED']);
-export const statusEnum=pgEnum('attempt_status',['IN_PROGRESS','SUBMITTED','AUTO_SUBMITTED','EXPIRED','INVALIDATED']);
-export const publicationEnum=pgEnum('publication_status',['DRAFT','PUBLISHED','ARCHIVED']);
-export const profiles=pgTable('user_profiles',{userId:owner().primaryKey(),username:text('username').unique(),bio:text('bio').notNull().default(''),country:text('country'),timezone:text('timezone').notNull().default('UTC'),preferredTopics:jsonb('preferred_topics').$type<string[]>().notNull().default([])});
-export const preferences=pgTable('user_preferences',{userId:owner().primaryKey(),settings:jsonb('settings').$type<Record<string,string|boolean|string[]>>().notNull().default({})});
-export const topics=pgTable('topics',{id:id(),slug:text('slug').notNull().unique(),name:text('name').notNull(),category:categoryEnum('category').notNull(),description:text('description').notNull(),active:boolean('active').notNull().default(true)});
-export const configs=pgTable('assessment_configs',{id:id(),topicId:uuid('topic_id').notNull().references(()=>topics.id),mode:modeEnum('mode').notNull(),policy:jsonb('policy').$type<Policy>().notNull(),updatedAt:created()},t=>[uniqueIndex('config_topic_mode').on(t.topicId,t.mode)]);
-export const questions=pgTable('questions',{id:id(),questionKey:text('question_key').notNull(),version:integer('version').notNull(),topicId:uuid('topic_id').notNull().references(()=>topics.id),difficulty:difficultyEnum('difficulty').notNull(),status:publicationEnum('status').notNull(),content:jsonb('content').$type<Question>().notNull(),contentHash:text('content_hash').notNull(),createdAt:created()},t=>[uniqueIndex('question_key_version').on(t.questionKey,t.version),index('questions_selection_idx').on(t.topicId,t.status,t.difficulty),check('positive_question_version',sql`${t.version}>0`)]);
-export type Review=ReturnType<typeof score>['reviews'][number]&{questionId:string;question:Question;selected:string[];responseTimeMs:number|null};
-export type Result=Omit<ReturnType<typeof score>,'reviews'>&{reviews:Review[];xp:number;ratingChange:number;topicRatingChange:number;integrity:number;rankEligible:boolean;durationSeconds:number;xpVersion:string;ratingVersion:string;integrityVersion:string};
-export const attempts=pgTable('attempts',{id:id(),userId:owner(),topicId:uuid('topic_id').notNull().references(()=>topics.id),category:categoryEnum('category').notNull(),mode:modeEnum('mode').notNull(),requestKey:uuid('request_key').notNull(),status:statusEnum('status').notNull().default('IN_PROGRESS'),startedAt:created(),expiresAt:timestamp('expires_at',{withTimezone:true}).notNull(),submittedAt:timestamp('submitted_at',{withTimezone:true}),policy:jsonb('policy').$type<Policy>().notNull(),result:jsonb('result').$type<Result>(),reason:text('reason'),currentPosition:integer('current_position').notNull().default(0)},t=>[uniqueIndex('attempt_request_key').on(t.userId,t.requestKey),uniqueIndex('one_active_attempt').on(t.userId).where(sql`${t.status}='IN_PROGRESS'`),index('attempt_user_date_idx').on(t.userId,t.startedAt),index('attempt_expiry_idx').on(t.expiresAt).where(sql`${t.status}='IN_PROGRESS'`),index('attempt_topic_idx').on(t.topicId),check('attempt_time_order',sql`${t.expiresAt}>${t.startedAt}`),check('attempt_result_state',sql`(${t.status}='IN_PROGRESS' AND ${t.result} IS NULL AND ${t.submittedAt} IS NULL) OR (${t.status}<>'IN_PROGRESS' AND ${t.result} IS NOT NULL AND ${t.submittedAt} IS NOT NULL)`)]);
-export const attemptQuestions=pgTable('attempt_questions',{id:id(),attemptId:uuid('attempt_id').notNull().references(()=>attempts.id,{onDelete:'cascade'}),questionId:uuid('question_id').notNull().references(()=>questions.id,{onDelete:'restrict'}),position:integer('position').notNull(),snapshot:jsonb('snapshot').$type<Question>().notNull()},t=>[uniqueIndex('attempt_question_unique').on(t.attemptId,t.questionId),uniqueIndex('attempt_position_unique').on(t.attemptId,t.position)]);
-export const answers=pgTable('attempt_answers',{attemptQuestionId:uuid('attempt_question_id').primaryKey().references(()=>attemptQuestions.id,{onDelete:'cascade'}),selected:jsonb('selected').$type<string[]>().notNull(),responseTimeMs:integer('response_time_ms'),savedAt:created()},t=>[check('nonnegative_response_time',sql`${t.responseTimeMs} IS NULL OR ${t.responseTimeMs}>=0`)]);
-export const integrityEvents=pgTable('integrity_events',{id:id(),attemptId:uuid('attempt_id').notNull().references(()=>attempts.id,{onDelete:'cascade'}),sequence:integer('sequence').notNull(),event:jsonb('event').$type<IntegrityEvent>().notNull()},t=>[uniqueIndex('integrity_sequence').on(t.attemptId,t.sequence)]);
-export const xpLedger=pgTable('xp_ledger',{id:id(),userId:owner(),attemptId:uuid('attempt_id').notNull().unique().references(()=>attempts.id,{onDelete:'cascade'}),amount:integer('amount').notNull(),topicId:uuid('topic_id').notNull().references(()=>topics.id),category:categoryEnum('category').notNull(),mode:modeEnum('mode').notNull(),engineVersion:text('engine_version').notNull(),createdAt:created()},t=>[index('xp_period_scope_idx').on(t.createdAt,t.category,t.mode,t.topicId),index('xp_user_period_idx').on(t.userId,t.createdAt),check('xp_nonnegative',sql`${t.amount}>=0`)]);
-export const ratingEvents=pgTable('rating_events',{id:id(),userId:owner(),attemptId:uuid('attempt_id').notNull().references(()=>attempts.id,{onDelete:'cascade'}),scope:text('scope').notNull(),before:integer('before').notNull(),after:integer('after').notNull(),delta:integer('delta').notNull(),engineVersion:text('engine_version').notNull(),createdAt:created()},t=>[uniqueIndex('rating_attempt_scope').on(t.attemptId,t.scope),index('rating_user_scope_time').on(t.userId,t.scope,t.createdAt),check('rating_delta_consistent',sql`${t.after}-${t.before}=${t.delta}`)]);
-export type Metrics={objectiveCount:number;objectiveCorrect:number;weightedCount:number;weightedQualitySum:number;totalXp:number;rating:number;assessmentCount:number;ratedCount:number;questionsAnswered:number;averageNormalizedScore:number;accuracyPercent:number|null;answerQualityPercent:number|null;averageIntegrity:number;currentStreak:number;longestStreak:number;bestScore:number;latestScore:number;lastAssessmentAt:string|null};
-export const metrics=pgTable('user_metrics',{userId:owner().primaryKey(),data:jsonb('data').$type<Metrics>().notNull()});
-export const topicMetrics=pgTable('user_topic_metrics',{userId:owner(),topicId:uuid('topic_id').notNull().references(()=>topics.id),data:jsonb('data').$type<Metrics>().notNull()},t=>[primaryKey({columns:[t.userId,t.topicId]})]);
-export const importBatches=pgTable('question_import_batches',{id:id(),adminId:uuid('admin_id').references(()=>user.id,{onDelete:'set null'}),hash:text('hash').notNull(),created:integer('created').notNull(),existing:integer('existing').notNull(),createdAt:created()});
-export const auditLogs=pgTable('admin_audit_logs',{id:id(),adminId:uuid('admin_id').references(()=>user.id,{onDelete:'set null'}),action:text('action').notNull(),target:text('target').notNull(),metadata:jsonb('metadata').$type<Record<string,unknown>>().notNull().default({}),createdAt:created()},t=>[index('audit_created_idx').on(t.createdAt,t.id)]);
-export const requestLimits=pgTable('request_limits',{key:text('key').primaryKey(),count:integer('count').notNull(),expiresAt:timestamp('expires_at',{withTimezone:true}).notNull()},t=>[index('request_limits_expiry').on(t.expiresAt)]);
-export type Scope={topic?:string;category?:Category;mode?:Mode};
+const id = () => uuid('id').primaryKey().defaultRandom();
+const created = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
+const owner = () =>
+  uuid('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' });
+export const categoryEnum = pgEnum('category', ['TECHNICAL', 'INTERPERSONAL']);
+export const modeEnum = pgEnum('assessment_mode', ['EASY', 'MEDIUM', 'COMPETITIVE']);
+export const difficultyEnum = pgEnum('question_difficulty', [
+  'FOUNDATIONAL',
+  'INTERMEDIATE',
+  'ADVANCED',
+]);
+export const statusEnum = pgEnum('attempt_status', [
+  'IN_PROGRESS',
+  'SUBMITTED',
+  'AUTO_SUBMITTED',
+  'EXPIRED',
+  'INVALIDATED',
+]);
+export const publicationEnum = pgEnum('publication_status', ['DRAFT', 'PUBLISHED', 'ARCHIVED']);
+export const profiles = pgTable('user_profiles', {
+  userId: owner().primaryKey(),
+  username: text('username').unique(),
+  bio: text('bio').notNull().default(''),
+  country: text('country'),
+  timezone: text('timezone').notNull().default('UTC'),
+  preferredTopics: jsonb('preferred_topics').$type<string[]>().notNull().default([]),
+});
+export const preferences = pgTable('user_preferences', {
+  userId: owner().primaryKey(),
+  settings: jsonb('settings')
+    .$type<Record<string, string | boolean | string[]>>()
+    .notNull()
+    .default({}),
+});
+export const topics = pgTable('topics', {
+  id: id(),
+  slug: text('slug').notNull().unique(),
+  name: text('name').notNull(),
+  category: categoryEnum('category').notNull(),
+  description: text('description').notNull(),
+  active: boolean('active').notNull().default(true),
+});
+export const configs = pgTable(
+  'assessment_configs',
+  {
+    id: id(),
+    topicId: uuid('topic_id')
+      .notNull()
+      .references(() => topics.id),
+    mode: modeEnum('mode').notNull(),
+    policy: jsonb('policy').$type<Policy>().notNull(),
+    updatedAt: created(),
+  },
+  (t) => [uniqueIndex('config_topic_mode').on(t.topicId, t.mode)],
+);
+export const questions = pgTable(
+  'questions',
+  {
+    id: id(),
+    questionKey: text('question_key').notNull(),
+    version: integer('version').notNull(),
+    topicId: uuid('topic_id')
+      .notNull()
+      .references(() => topics.id),
+    difficulty: difficultyEnum('difficulty').notNull(),
+    status: publicationEnum('status').notNull(),
+    content: jsonb('content').$type<Question>().notNull(),
+    contentHash: text('content_hash').notNull(),
+    createdAt: created(),
+  },
+  (t) => [
+    uniqueIndex('question_key_version').on(t.questionKey, t.version),
+    index('questions_selection_idx').on(t.topicId, t.status, t.difficulty),
+    check('positive_question_version', sql`${t.version}>0`),
+  ],
+);
+export type Review = ReturnType<typeof score>['reviews'][number] & {
+  questionId: string;
+  question: Question;
+  selected: string[];
+  responseTimeMs: number | null;
+};
+export type Result = Omit<ReturnType<typeof score>, 'reviews'> & {
+  reviews: Review[];
+  xp: number;
+  ratingChange: number;
+  topicRatingChange: number;
+  integrity: number;
+  rankEligible: boolean;
+  durationSeconds: number;
+  xpVersion: string;
+  ratingVersion: string;
+  integrityVersion: string;
+};
+export const attempts = pgTable(
+  'attempts',
+  {
+    id: id(),
+    userId: owner(),
+    topicId: uuid('topic_id')
+      .notNull()
+      .references(() => topics.id),
+    category: categoryEnum('category').notNull(),
+    mode: modeEnum('mode').notNull(),
+    requestKey: uuid('request_key').notNull(),
+    status: statusEnum('status').notNull().default('IN_PROGRESS'),
+    startedAt: created(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }),
+    policy: jsonb('policy').$type<Policy>().notNull(),
+    result: jsonb('result').$type<Result>(),
+    reason: text('reason'),
+    currentPosition: integer('current_position').notNull().default(0),
+  },
+  (t) => [
+    uniqueIndex('attempt_request_key').on(t.userId, t.requestKey),
+    uniqueIndex('one_active_attempt')
+      .on(t.userId)
+      .where(sql`${t.status}='IN_PROGRESS'`),
+    index('attempt_user_date_idx').on(t.userId, t.startedAt),
+    index('attempt_expiry_idx')
+      .on(t.expiresAt)
+      .where(sql`${t.status}='IN_PROGRESS'`),
+    index('attempt_topic_idx').on(t.topicId),
+    check('attempt_time_order', sql`${t.expiresAt}>${t.startedAt}`),
+    check(
+      'attempt_result_state',
+      sql`(${t.status}='IN_PROGRESS' AND ${t.result} IS NULL AND ${t.submittedAt} IS NULL) OR (${t.status}<>'IN_PROGRESS' AND ${t.result} IS NOT NULL AND ${t.submittedAt} IS NOT NULL)`,
+    ),
+  ],
+);
+export const attemptQuestions = pgTable(
+  'attempt_questions',
+  {
+    id: id(),
+    attemptId: uuid('attempt_id')
+      .notNull()
+      .references(() => attempts.id, { onDelete: 'cascade' }),
+    questionId: uuid('question_id')
+      .notNull()
+      .references(() => questions.id, { onDelete: 'restrict' }),
+    position: integer('position').notNull(),
+    snapshot: jsonb('snapshot').$type<Question>().notNull(),
+  },
+  (t) => [
+    uniqueIndex('attempt_question_unique').on(t.attemptId, t.questionId),
+    uniqueIndex('attempt_position_unique').on(t.attemptId, t.position),
+  ],
+);
+export const answers = pgTable(
+  'attempt_answers',
+  {
+    attemptQuestionId: uuid('attempt_question_id')
+      .primaryKey()
+      .references(() => attemptQuestions.id, { onDelete: 'cascade' }),
+    selected: jsonb('selected').$type<string[]>().notNull(),
+    responseTimeMs: integer('response_time_ms'),
+    savedAt: created(),
+  },
+  (t) => [
+    check('nonnegative_response_time', sql`${t.responseTimeMs} IS NULL OR ${t.responseTimeMs}>=0`),
+  ],
+);
+export const integrityEvents = pgTable(
+  'integrity_events',
+  {
+    id: id(),
+    attemptId: uuid('attempt_id')
+      .notNull()
+      .references(() => attempts.id, { onDelete: 'cascade' }),
+    sequence: integer('sequence').notNull(),
+    event: jsonb('event').$type<IntegrityEvent>().notNull(),
+  },
+  (t) => [uniqueIndex('integrity_sequence').on(t.attemptId, t.sequence)],
+);
+export const xpLedger = pgTable(
+  'xp_ledger',
+  {
+    id: id(),
+    userId: owner(),
+    attemptId: uuid('attempt_id')
+      .notNull()
+      .unique()
+      .references(() => attempts.id, { onDelete: 'cascade' }),
+    amount: integer('amount').notNull(),
+    topicId: uuid('topic_id')
+      .notNull()
+      .references(() => topics.id),
+    category: categoryEnum('category').notNull(),
+    mode: modeEnum('mode').notNull(),
+    engineVersion: text('engine_version').notNull(),
+    createdAt: created(),
+  },
+  (t) => [
+    index('xp_period_scope_idx').on(t.createdAt, t.category, t.mode, t.topicId),
+    index('xp_user_period_idx').on(t.userId, t.createdAt),
+    check('xp_nonnegative', sql`${t.amount}>=0`),
+  ],
+);
+export const ratingEvents = pgTable(
+  'rating_events',
+  {
+    id: id(),
+    userId: owner(),
+    attemptId: uuid('attempt_id')
+      .notNull()
+      .references(() => attempts.id, { onDelete: 'cascade' }),
+    scope: text('scope').notNull(),
+    before: integer('before').notNull(),
+    after: integer('after').notNull(),
+    delta: integer('delta').notNull(),
+    engineVersion: text('engine_version').notNull(),
+    createdAt: created(),
+  },
+  (t) => [
+    uniqueIndex('rating_attempt_scope').on(t.attemptId, t.scope),
+    index('rating_user_scope_time').on(t.userId, t.scope, t.createdAt),
+    check('rating_delta_consistent', sql`${t.after}-${t.before}=${t.delta}`),
+  ],
+);
+export type Metrics = {
+  objectiveCount: number;
+  objectiveCorrect: number;
+  weightedCount: number;
+  weightedQualitySum: number;
+  totalXp: number;
+  rating: number;
+  assessmentCount: number;
+  ratedCount: number;
+  questionsAnswered: number;
+  averageNormalizedScore: number;
+  accuracyPercent: number | null;
+  answerQualityPercent: number | null;
+  averageIntegrity: number;
+  currentStreak: number;
+  longestStreak: number;
+  bestScore: number;
+  latestScore: number;
+  lastAssessmentAt: string | null;
+};
+export const metrics = pgTable('user_metrics', {
+  userId: owner().primaryKey(),
+  data: jsonb('data').$type<Metrics>().notNull(),
+});
+export const topicMetrics = pgTable(
+  'user_topic_metrics',
+  {
+    userId: owner(),
+    topicId: uuid('topic_id')
+      .notNull()
+      .references(() => topics.id),
+    data: jsonb('data').$type<Metrics>().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.topicId] })],
+);
+export const importBatches = pgTable('question_import_batches', {
+  id: id(),
+  adminId: uuid('admin_id').references(() => user.id, { onDelete: 'set null' }),
+  hash: text('hash').notNull(),
+  created: integer('created').notNull(),
+  existing: integer('existing').notNull(),
+  createdAt: created(),
+});
+export const auditLogs = pgTable(
+  'admin_audit_logs',
+  {
+    id: id(),
+    adminId: uuid('admin_id').references(() => user.id, { onDelete: 'set null' }),
+    action: text('action').notNull(),
+    target: text('target').notNull(),
+    metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: created(),
+  },
+  (t) => [index('audit_created_idx').on(t.createdAt, t.id)],
+);
+export const requestLimits = pgTable(
+  'request_limits',
+  {
+    key: text('key').primaryKey(),
+    count: integer('count').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [index('request_limits_expiry').on(t.expiresAt)],
+);
+export type Scope = { topic?: string; category?: Category; mode?: Mode };
