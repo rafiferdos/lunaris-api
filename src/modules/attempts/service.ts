@@ -171,10 +171,12 @@ export function createAttemptService(
       policy: { ...a.policy, integrity: integrityPolicy },
       integrity: assessIntegrity(events, a.mode),
       currentPosition: a.currentPosition,
+      nextIntegritySequence: events.reduce((max, event) => Math.max(max, event.sequence + 1), 0),
       questions: rows.map((r) => ({
         ...publicQuestion(r.question.id, r.question.snapshot),
         position: r.question.position,
         selected: r.answer?.selected ?? [],
+        answered: !!r.answer,
       })),
       result: a.result,
       reason: a.reason,

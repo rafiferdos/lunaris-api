@@ -99,8 +99,13 @@ export const attemptSchema = z.object({
   policy: policySchema.extend({ integrity: integrityPolicySchema }),
   integrity: integrityStateSchema,
   currentPosition: z.number(),
+  nextIntegritySequence: z.number().int(),
   questions: z.array(
-    publicQuestionSchema.extend({ position: z.number(), selected: z.array(z.string()) }),
+    publicQuestionSchema.extend({
+      position: z.number(),
+      selected: z.array(z.string()),
+      answered: z.boolean(),
+    }),
   ),
   result: resultSchema.nullable(),
   reason: z.string().nullable(),
