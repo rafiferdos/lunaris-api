@@ -10,5 +10,5 @@ const events=createLeaderboardEvents(config.DATABASE_URL,logger);await events.st
 const {app}=createApp(db,config,events);
 const server=serve({fetch:app.fetch,port:config.PORT},()=>logger.info({port:config.PORT},'Lunaris API listening'));
 let stopping=false;
-async function shutdown(){if(stopping)return;stopping=true;logger.info('Graceful shutdown started');const deadline=setTimeout(()=>{logger.error('Shutdown deadline exceeded');process.exit(1);},10000);deadline.unref();server.close();server.closeIdleConnections();try{await events.close();await pool.end();}finally{clearTimeout(deadline);server.closeAllConnections();}}
+async function shutdown(){if(stopping)return;stopping=true;logger.info('Graceful shutdown started');const deadline=setTimeout(()=>{logger.error('Shutdown deadline exceeded');process.exit(1);},10000);deadline.unref();server.close();if('closeIdleConnections' in server)server.closeIdleConnections();try{await events.close();await pool.end();}finally{clearTimeout(deadline);if('closeAllConnections' in server)server.closeAllConnections();}}
 process.on('SIGTERM',()=>void shutdown());process.on('SIGINT',()=>void shutdown());

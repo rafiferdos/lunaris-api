@@ -1,0 +1,1092 @@
+{
+  "topics": [
+    {
+      "slug": "javascript",
+      "name": "JavaScript",
+      "description": "Go beyond the syntax. Explore the language of the web.",
+      "category": "TECHNICAL"
+    },
+    {
+      "slug": "typescript",
+      "name": "TypeScript",
+      "description": "Build confidence in types, generics, and safer code.",
+      "category": "TECHNICAL"
+    },
+    {
+      "slug": "react",
+      "name": "React",
+      "description": "Think in components. Master state, hooks, and rendering.",
+      "category": "TECHNICAL"
+    },
+    {
+      "slug": "nextjs",
+      "name": "Next.js",
+      "description": "From server components to thoughtful web architecture.",
+      "category": "TECHNICAL"
+    },
+    {
+      "slug": "nodejs",
+      "name": "Node.js",
+      "description": "Understand the runtime behind scalable applications.",
+      "category": "TECHNICAL"
+    },
+    {
+      "slug": "express",
+      "name": "Express",
+      "description": "Design clear middleware and reliable HTTP services.",
+      "category": "TECHNICAL"
+    },
+    {
+      "slug": "hono",
+      "name": "Hono",
+      "description": "Small, fast services across modern JavaScript runtimes.",
+      "category": "TECHNICAL"
+    },
+    {
+      "slug": "postgresql",
+      "name": "PostgreSQL",
+      "description": "Work confidently with queries, indexes, and transactions.",
+      "category": "TECHNICAL"
+    },
+    {
+      "slug": "rest-apis",
+      "name": "REST APIs",
+      "description": "Design predictable resources and resilient interfaces.",
+      "category": "TECHNICAL"
+    },
+    {
+      "slug": "graphql",
+      "name": "GraphQL",
+      "description": "Reason about schemas, resolvers, and query performance.",
+      "category": "TECHNICAL"
+    },
+    {
+      "slug": "git",
+      "name": "Git",
+      "description": "Navigate collaboration, branching, and version history.",
+      "category": "TECHNICAL"
+    },
+    {
+      "slug": "web-security",
+      "name": "Web Security",
+      "description": "Recognize threats and choose effective defenses.",
+      "category": "TECHNICAL"
+    },
+    {
+      "slug": "testing",
+      "name": "Testing",
+      "description": "Write tests that protect behavior and build confidence.",
+      "category": "TECHNICAL"
+    },
+    {
+      "slug": "system-design",
+      "name": "System Design",
+      "description": "Balance reliability, scale, and architectural tradeoffs.",
+      "category": "TECHNICAL"
+    },
+    {
+      "slug": "problem-solving",
+      "name": "Problem Solving",
+      "description": "Break complex problems into deliberate, testable steps.",
+      "category": "TECHNICAL"
+    },
+    {
+      "slug": "communication",
+      "name": "Communication",
+      "description": "Make complex ideas clear and conversations productive.",
+      "category": "INTERPERSONAL"
+    },
+    {
+      "slug": "conflict-handling",
+      "name": "Conflict Handling",
+      "description": "Find common ground when perspectives differ.",
+      "category": "INTERPERSONAL"
+    },
+    {
+      "slug": "ownership",
+      "name": "Ownership",
+      "description": "Take responsibility and follow through with intention.",
+      "category": "INTERPERSONAL"
+    },
+    {
+      "slug": "decision-making",
+      "name": "Decision Making",
+      "description": "Weigh evidence, uncertainty, and practical tradeoffs.",
+      "category": "INTERPERSONAL"
+    },
+    {
+      "slug": "collaboration",
+      "name": "Collaboration",
+      "description": "Create the conditions for a team to do its best work.",
+      "category": "INTERPERSONAL"
+    },
+    {
+      "slug": "adaptability",
+      "name": "Adaptability",
+      "description": "Respond thoughtfully when plans and priorities change.",
+      "category": "INTERPERSONAL"
+    },
+    {
+      "slug": "accountability",
+      "name": "Accountability",
+      "description": "Build trust through dependable actions.",
+      "category": "INTERPERSONAL"
+    },
+    {
+      "slug": "leadership",
+      "name": "Leadership",
+      "description": "Give direction, develop people, and make room for others.",
+      "category": "INTERPERSONAL"
+    },
+    {
+      "slug": "feedback",
+      "name": "Feedback",
+      "description": "Offer specific observations that lead to growth.",
+      "category": "INTERPERSONAL"
+    },
+    {
+      "slug": "prioritization",
+      "name": "Prioritization",
+      "description": "Focus effort where it makes the greatest difference.",
+      "category": "INTERPERSONAL"
+    },
+    {
+      "slug": "client-communication",
+      "name": "Client Communication",
+      "description": "Set expectations and build productive partnerships.",
+      "category": "INTERPERSONAL"
+    }
+  ],
+  "document": {
+    "schemaVersion": 1,
+    "questions": [
+      {
+        "questionKey": "javascript-1",
+        "version": 1,
+        "topicSlug": "javascript",
+        "category": "TECHNICAL",
+        "difficulty": "FOUNDATIONAL",
+        "type": "SINGLE_CHOICE",
+        "prompt": "What does this code print?",
+        "code": "for (var i = 0; i < 3; i++) {\n  setTimeout(() => console.log(i), 0);\n}",
+        "language": "javascript",
+        "options": [
+          {
+            "id": "1",
+            "text": "0, 1, 2",
+            "isCorrect": false
+          },
+          {
+            "id": "2",
+            "text": "3, 3, 3",
+            "isCorrect": true
+          },
+          {
+            "id": "3",
+            "text": "undefined, undefined, undefined",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "A ReferenceError",
+            "isCorrect": false
+          }
+        ],
+        "explanation": "var is function-scoped. Each callback reads the same i after the loop has completed, when it is 3.",
+        "tags": [
+          "Closures"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "javascript-2",
+        "version": 1,
+        "topicSlug": "javascript",
+        "category": "TECHNICAL",
+        "difficulty": "INTERMEDIATE",
+        "type": "MULTIPLE_CHOICE",
+        "prompt": "Which methods return a new array without mutating the original?",
+        "options": [
+          {
+            "id": "1",
+            "text": "map()",
+            "isCorrect": true
+          },
+          {
+            "id": "2",
+            "text": "sort()",
+            "isCorrect": false
+          },
+          {
+            "id": "3",
+            "text": "filter()",
+            "isCorrect": true
+          },
+          {
+            "id": "4",
+            "text": "splice()",
+            "isCorrect": false
+          }
+        ],
+        "explanation": "map and filter create new arrays. sort and splice change the original array.",
+        "tags": [
+          "Arrays"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "javascript-3",
+        "version": 1,
+        "topicSlug": "javascript",
+        "category": "TECHNICAL",
+        "difficulty": "ADVANCED",
+        "type": "SINGLE_CHOICE",
+        "prompt": "When does a Promise.then callback run?",
+        "options": [
+          {
+            "id": "1",
+            "text": "Immediately, before the current function finishes",
+            "isCorrect": false
+          },
+          {
+            "id": "2",
+            "text": "In the microtask queue, after the current stack clears",
+            "isCorrect": true
+          },
+          {
+            "id": "3",
+            "text": "Only after all timers finish",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "On a separate JavaScript thread",
+            "isCorrect": false
+          }
+        ],
+        "explanation": "Promise reactions are microtasks. They run after synchronous execution and before the next task.",
+        "tags": [
+          "Async behavior"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "javascript-4",
+        "version": 1,
+        "topicSlug": "javascript",
+        "category": "TECHNICAL",
+        "difficulty": "FOUNDATIONAL",
+        "type": "SINGLE_CHOICE",
+        "prompt": "What does Object.is(NaN, NaN) return?",
+        "options": [
+          {
+            "id": "1",
+            "text": "true",
+            "isCorrect": true
+          },
+          {
+            "id": "2",
+            "text": "false",
+            "isCorrect": false
+          },
+          {
+            "id": "3",
+            "text": "undefined",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "It throws",
+            "isCorrect": false
+          }
+        ],
+        "explanation": "Object.is treats NaN as equal to itself, unlike strict equality.",
+        "tags": [
+          "Equality"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "javascript-5",
+        "version": 1,
+        "topicSlug": "javascript",
+        "category": "TECHNICAL",
+        "difficulty": "INTERMEDIATE",
+        "type": "SINGLE_CHOICE",
+        "prompt": "Which statement about const is accurate?",
+        "options": [
+          {
+            "id": "1",
+            "text": "It makes an object deeply immutable",
+            "isCorrect": false
+          },
+          {
+            "id": "2",
+            "text": "It prevents reassignment of the binding",
+            "isCorrect": true
+          },
+          {
+            "id": "3",
+            "text": "It is scoped to the entire function",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "It can be declared without initialization",
+            "isCorrect": false
+          }
+        ],
+        "explanation": "const protects the binding, not the properties of the value it refers to.",
+        "tags": [
+          "Scope"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "typescript-1",
+        "version": 1,
+        "topicSlug": "typescript",
+        "category": "TECHNICAL",
+        "difficulty": "ADVANCED",
+        "type": "SINGLE_CHOICE",
+        "prompt": "What does unknown require before accessing its properties?",
+        "options": [
+          {
+            "id": "1",
+            "text": "A type assertion in every case",
+            "isCorrect": false
+          },
+          {
+            "id": "2",
+            "text": "A narrowing check",
+            "isCorrect": true
+          },
+          {
+            "id": "3",
+            "text": "Disabling strict mode",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "Nothing; it behaves like any",
+            "isCorrect": false
+          }
+        ],
+        "explanation": "unknown is safe because operations require narrowing to a known type.",
+        "tags": [
+          "Narrowing"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "typescript-2",
+        "version": 1,
+        "topicSlug": "typescript",
+        "category": "TECHNICAL",
+        "difficulty": "FOUNDATIONAL",
+        "type": "MULTIPLE_CHOICE",
+        "prompt": "Which constructs can narrow a union type?",
+        "options": [
+          {
+            "id": "1",
+            "text": "typeof checks",
+            "isCorrect": true
+          },
+          {
+            "id": "2",
+            "text": "Discriminant checks",
+            "isCorrect": true
+          },
+          {
+            "id": "3",
+            "text": "The readonly modifier",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "An instanceof check",
+            "isCorrect": true
+          }
+        ],
+        "explanation": "Runtime checks let TypeScript refine the possibilities for a value.",
+        "tags": [
+          "Unions"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "typescript-3",
+        "version": 1,
+        "topicSlug": "typescript",
+        "category": "TECHNICAL",
+        "difficulty": "INTERMEDIATE",
+        "type": "SINGLE_CHOICE",
+        "prompt": "What does a generic type parameter preserve?",
+        "options": [
+          {
+            "id": "1",
+            "text": "Runtime metadata",
+            "isCorrect": false
+          },
+          {
+            "id": "2",
+            "text": "The relationship between input and output types",
+            "isCorrect": true
+          },
+          {
+            "id": "3",
+            "text": "Automatic validation of JSON",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "The original variable name",
+            "isCorrect": false
+          }
+        ],
+        "explanation": "Generics express relationships between types without discarding information.",
+        "tags": [
+          "Generics"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "typescript-4",
+        "version": 1,
+        "topicSlug": "typescript",
+        "category": "TECHNICAL",
+        "difficulty": "ADVANCED",
+        "type": "SINGLE_CHOICE",
+        "prompt": "What is the safest way to handle untrusted JSON?",
+        "options": [
+          {
+            "id": "1",
+            "text": "Cast it using as",
+            "isCorrect": false
+          },
+          {
+            "id": "2",
+            "text": "Parse and validate its shape at runtime",
+            "isCorrect": true
+          },
+          {
+            "id": "3",
+            "text": "Annotate it with an interface only",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "Use a non-null assertion",
+            "isCorrect": false
+          }
+        ],
+        "explanation": "TypeScript types disappear at runtime. Validate external values before trusting them.",
+        "tags": [
+          "Validation"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "typescript-5",
+        "version": 1,
+        "topicSlug": "typescript",
+        "category": "TECHNICAL",
+        "difficulty": "FOUNDATIONAL",
+        "type": "SINGLE_CHOICE",
+        "prompt": "What is never useful for in a discriminated union switch?",
+        "options": [
+          {
+            "id": "1",
+            "text": "Accepting null",
+            "isCorrect": false
+          },
+          {
+            "id": "2",
+            "text": "Checking exhaustive handling",
+            "isCorrect": true
+          },
+          {
+            "id": "3",
+            "text": "Skipping type checking",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "Making properties optional",
+            "isCorrect": false
+          }
+        ],
+        "explanation": "If every variant is handled, the remaining type is never; this catches missed cases.",
+        "tags": [
+          "Exhaustiveness"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "react-1",
+        "version": 1,
+        "topicSlug": "react",
+        "category": "TECHNICAL",
+        "difficulty": "INTERMEDIATE",
+        "type": "SINGLE_CHOICE",
+        "prompt": "Why should list keys be stable across renders?",
+        "options": [
+          {
+            "id": "1",
+            "text": "They compress the HTML",
+            "isCorrect": false
+          },
+          {
+            "id": "2",
+            "text": "They preserve the identity of each component",
+            "isCorrect": true
+          },
+          {
+            "id": "3",
+            "text": "They prevent all renders",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "They are used as CSS selectors",
+            "isCorrect": false
+          }
+        ],
+        "explanation": "Stable keys let React associate state with the correct item when a list changes.",
+        "tags": [
+          "Reconciliation"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "react-2",
+        "version": 1,
+        "topicSlug": "react",
+        "category": "TECHNICAL",
+        "difficulty": "ADVANCED",
+        "type": "MULTIPLE_CHOICE",
+        "prompt": "Which values belong in an effect dependency list when read by the effect?",
+        "options": [
+          {
+            "id": "1",
+            "text": "Props read inside the effect",
+            "isCorrect": true
+          },
+          {
+            "id": "2",
+            "text": "State read inside the effect",
+            "isCorrect": true
+          },
+          {
+            "id": "3",
+            "text": "Module-level constants",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "A reactive function declared in the component",
+            "isCorrect": true
+          }
+        ],
+        "explanation": "Dependencies include reactive values read by an effect, not fixed module values.",
+        "tags": [
+          "Effects"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "react-3",
+        "version": 1,
+        "topicSlug": "react",
+        "category": "TECHNICAL",
+        "difficulty": "FOUNDATIONAL",
+        "type": "SINGLE_CHOICE",
+        "prompt": "How should you update state based on its previous value?",
+        "options": [
+          {
+            "id": "1",
+            "text": "Mutate the existing value",
+            "isCorrect": false
+          },
+          {
+            "id": "2",
+            "text": "Use the functional updater form",
+            "isCorrect": true
+          },
+          {
+            "id": "3",
+            "text": "Read the DOM first",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "Always add an effect",
+            "isCorrect": false
+          }
+        ],
+        "explanation": "Functional updaters receive the pending state and work correctly with batched updates.",
+        "tags": [
+          "State"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "react-4",
+        "version": 1,
+        "topicSlug": "react",
+        "category": "TECHNICAL",
+        "difficulty": "INTERMEDIATE",
+        "type": "SINGLE_CHOICE",
+        "prompt": "Where should a value derived entirely from props usually be calculated?",
+        "options": [
+          {
+            "id": "1",
+            "text": "In an effect with setState",
+            "isCorrect": false
+          },
+          {
+            "id": "2",
+            "text": "During rendering",
+            "isCorrect": true
+          },
+          {
+            "id": "3",
+            "text": "In a global store",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "In a DOM event",
+            "isCorrect": false
+          }
+        ],
+        "explanation": "Calculate derived data during rendering instead of synchronizing redundant state.",
+        "tags": [
+          "Rendering"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "react-5",
+        "version": 1,
+        "topicSlug": "react",
+        "category": "TECHNICAL",
+        "difficulty": "ADVANCED",
+        "type": "SINGLE_CHOICE",
+        "prompt": "Which approach shares state between two sibling components?",
+        "options": [
+          {
+            "id": "1",
+            "text": "Lift it to their closest common parent",
+            "isCorrect": true
+          },
+          {
+            "id": "2",
+            "text": "Duplicate it in each sibling",
+            "isCorrect": false
+          },
+          {
+            "id": "3",
+            "text": "Modify one sibling's props directly",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "Use a browser global",
+            "isCorrect": false
+          }
+        ],
+        "explanation": "A common owner gives both siblings a single source of truth.",
+        "tags": [
+          "Composition"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "nextjs-1",
+        "version": 1,
+        "topicSlug": "nextjs",
+        "category": "TECHNICAL",
+        "difficulty": "FOUNDATIONAL",
+        "type": "SINGLE_CHOICE",
+        "prompt": "Which boundary is appropriate for a component using browser event handlers?",
+        "options": [
+          {
+            "id": "1",
+            "text": "A Client Component boundary",
+            "isCorrect": true
+          },
+          {
+            "id": "2",
+            "text": "A database transaction",
+            "isCorrect": false
+          },
+          {
+            "id": "3",
+            "text": "A static asset",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "A metadata export",
+            "isCorrect": false
+          }
+        ],
+        "explanation": "Interactive browser handlers require a Client Component.",
+        "tags": [
+          "Rendering"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "nextjs-2",
+        "version": 1,
+        "topicSlug": "nextjs",
+        "category": "TECHNICAL",
+        "difficulty": "INTERMEDIATE",
+        "type": "MULTIPLE_CHOICE",
+        "prompt": "Which values should remain on the server?",
+        "options": [
+          {
+            "id": "1",
+            "text": "Database credentials",
+            "isCorrect": true
+          },
+          {
+            "id": "2",
+            "text": "Private API tokens",
+            "isCorrect": true
+          },
+          {
+            "id": "3",
+            "text": "A public button label",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "A public image URL",
+            "isCorrect": false
+          }
+        ],
+        "explanation": "Secrets must remain behind the server boundary, never in browser bundles.",
+        "tags": [
+          "Security"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "nextjs-3",
+        "version": 1,
+        "topicSlug": "nextjs",
+        "category": "TECHNICAL",
+        "difficulty": "ADVANCED",
+        "type": "SINGLE_CHOICE",
+        "prompt": "What is the purpose of a loading boundary?",
+        "options": [
+          {
+            "id": "1",
+            "text": "Block all navigation",
+            "isCorrect": false
+          },
+          {
+            "id": "2",
+            "text": "Provide a fallback while content is loading",
+            "isCorrect": true
+          },
+          {
+            "id": "3",
+            "text": "Disable streaming",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "Cache a user's password",
+            "isCorrect": false
+          }
+        ],
+        "explanation": "Loading boundaries keep the interface responsive while slower content resolves.",
+        "tags": [
+          "Loading"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "nextjs-4",
+        "version": 1,
+        "topicSlug": "nextjs",
+        "category": "TECHNICAL",
+        "difficulty": "FOUNDATIONAL",
+        "type": "SINGLE_CHOICE",
+        "prompt": "How should an unknown resource slug be handled?",
+        "options": [
+          {
+            "id": "1",
+            "text": "Render an empty page",
+            "isCorrect": false
+          },
+          {
+            "id": "2",
+            "text": "Show a meaningful not-found state",
+            "isCorrect": true
+          },
+          {
+            "id": "3",
+            "text": "Throw a string in an event handler",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "Redirect every request home",
+            "isCorrect": false
+          }
+        ],
+        "explanation": "A clear not-found page communicates the problem and gives a path back.",
+        "tags": [
+          "Routing"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "nextjs-5",
+        "version": 1,
+        "topicSlug": "nextjs",
+        "category": "TECHNICAL",
+        "difficulty": "INTERMEDIATE",
+        "type": "SINGLE_CHOICE",
+        "prompt": "What should happen before trusting values from a form?",
+        "options": [
+          {
+            "id": "1",
+            "text": "Runtime validation",
+            "isCorrect": true
+          },
+          {
+            "id": "2",
+            "text": "A type assertion only",
+            "isCorrect": false
+          },
+          {
+            "id": "3",
+            "text": "Changing the CSS",
+            "isCorrect": false
+          },
+          {
+            "id": "4",
+            "text": "Nothing if HTML validation is enabled",
+            "isCorrect": false
+          }
+        ],
+        "explanation": "External values require runtime validation. Client validation improves UX but is not a security boundary.",
+        "tags": [
+          "Validation"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "communication-1",
+        "version": 1,
+        "topicSlug": "communication",
+        "category": "INTERPERSONAL",
+        "difficulty": "ADVANCED",
+        "type": "WEIGHTED_CHOICE",
+        "prompt": "A teammate repeatedly interrupts you in planning. What do you do first?",
+        "options": [
+          {
+            "id": "1",
+            "text": "Speak privately, describe the pattern, and ask for their perspective.",
+            "quality": "BEST"
+          },
+          {
+            "id": "2",
+            "text": "Suggest a structured turn-taking format at the next meeting.",
+            "quality": "STRONG"
+          },
+          {
+            "id": "3",
+            "text": "Wait to see if someone else raises it.",
+            "quality": "ACCEPTABLE"
+          },
+          {
+            "id": "4",
+            "text": "Interrupt them in return.",
+            "quality": "WEAK"
+          }
+        ],
+        "explanation": "A private, specific conversation addresses the behavior while leaving room for context.",
+        "tags": [
+          "Active listening"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "communication-2",
+        "version": 1,
+        "topicSlug": "communication",
+        "category": "INTERPERSONAL",
+        "difficulty": "FOUNDATIONAL",
+        "type": "WEIGHTED_CHOICE",
+        "prompt": "A client asks for work that will delay the agreed release. How do you respond?",
+        "options": [
+          {
+            "id": "1",
+            "text": "Explain the tradeoff and agree on priorities together.",
+            "quality": "BEST"
+          },
+          {
+            "id": "2",
+            "text": "Offer a smaller alternative and confirm it with the team.",
+            "quality": "STRONG"
+          },
+          {
+            "id": "3",
+            "text": "Say you will try without changing the plan.",
+            "quality": "ACCEPTABLE"
+          },
+          {
+            "id": "4",
+            "text": "Agree immediately and ask the team to work late.",
+            "quality": "WEAK"
+          }
+        ],
+        "explanation": "Clear tradeoffs help the client make an informed decision without hidden commitments.",
+        "tags": [
+          "Expectations"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "communication-3",
+        "version": 1,
+        "topicSlug": "communication",
+        "category": "INTERPERSONAL",
+        "difficulty": "INTERMEDIATE",
+        "type": "WEIGHTED_CHOICE",
+        "prompt": "You discover your update confused a nontechnical stakeholder. What is the best next step?",
+        "options": [
+          {
+            "id": "1",
+            "text": "Restate the outcome in plain language and check their understanding.",
+            "quality": "BEST"
+          },
+          {
+            "id": "2",
+            "text": "Share a short written summary with examples.",
+            "quality": "STRONG"
+          },
+          {
+            "id": "3",
+            "text": "Forward the technical documentation.",
+            "quality": "ACCEPTABLE"
+          },
+          {
+            "id": "4",
+            "text": "Repeat the same explanation more slowly.",
+            "quality": "WEAK"
+          }
+        ],
+        "explanation": "Adapt to the audience and verify shared understanding.",
+        "tags": [
+          "Clarity"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "communication-4",
+        "version": 1,
+        "topicSlug": "communication",
+        "category": "INTERPERSONAL",
+        "difficulty": "ADVANCED",
+        "type": "WEIGHTED_CHOICE",
+        "prompt": "A colleague disagrees strongly with your proposed solution. What do you say?",
+        "options": [
+          {
+            "id": "1",
+            "text": "Which concern matters most, and what evidence could help us decide?",
+            "quality": "BEST"
+          },
+          {
+            "id": "2",
+            "text": "Let's compare the tradeoffs of both options.",
+            "quality": "STRONG"
+          },
+          {
+            "id": "3",
+            "text": "We can ask the manager to choose.",
+            "quality": "ACCEPTABLE"
+          },
+          {
+            "id": "4",
+            "text": "I have more experience with this, so let's move on.",
+            "quality": "WEAK"
+          }
+        ],
+        "explanation": "Curiosity and shared evidence move disagreement toward a constructive decision.",
+        "tags": [
+          "Conflict resolution"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      },
+      {
+        "questionKey": "communication-5",
+        "version": 1,
+        "topicSlug": "communication",
+        "category": "INTERPERSONAL",
+        "difficulty": "FOUNDATIONAL",
+        "type": "WEIGHTED_CHOICE",
+        "prompt": "A deadline will be missed. When and how should you communicate?",
+        "options": [
+          {
+            "id": "1",
+            "text": "As soon as the risk is known, with impact, options, and a revised estimate.",
+            "quality": "BEST"
+          },
+          {
+            "id": "2",
+            "text": "Share the risk promptly and commit to a follow-up estimate.",
+            "quality": "STRONG"
+          },
+          {
+            "id": "3",
+            "text": "Wait until you have a complete recovery plan.",
+            "quality": "ACCEPTABLE"
+          },
+          {
+            "id": "4",
+            "text": "Mention it only if someone asks.",
+            "quality": "WEAK"
+          }
+        ],
+        "explanation": "Early, actionable communication gives others time to adapt.",
+        "tags": [
+          "Transparency"
+        ],
+        "estimatedTimeSeconds": 60,
+        "status": "PUBLISHED"
+      }
+    ]
+  }
+}
