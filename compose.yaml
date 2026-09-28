@@ -1,0 +1,30 @@
+name: lunaris-api
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: lunaris
+      POSTGRES_PASSWORD: lunaris_local_only
+      POSTGRES_DB: lunaris
+    ports: ['127.0.0.1:5434:5432']
+    volumes: ['postgres-data:/var/lib/postgresql']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U lunaris -d lunaris']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  postgres-test:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: lunaris
+      POSTGRES_PASSWORD: lunaris_local_only
+      POSTGRES_DB: lunaris_test
+    ports: ['127.0.0.1:5435:5432']
+    tmpfs: ['/var/lib/postgresql']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U lunaris -d lunaris_test']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  postgres-data:
