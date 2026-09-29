@@ -1,6 +1,6 @@
 # Frontend integration contract
 
-The frontend remains unchanged. Replace its mock repositories and local result calculations with these authenticated APIs. The live schemas at `/openapi.json` and `/api/auth/open-api/generate-schema` are authoritative for exact field names, enums, defaults and response bodies.
+The sibling `lunaris` frontend now uses these authenticated APIs through generated OpenAPI types and a credentialed TanStack Query client. See its README for local setup and browser verification. The live schemas at `/openapi.json` and `/api/auth/open-api/generate-schema` are authoritative for exact field names, enums, defaults and response bodies.
 
 ## Transport and sessions
 
@@ -28,10 +28,10 @@ Auth endpoints use Better Auth's native response/error format: POST `/api/auth/s
 
 1. Read availability; show server reasons for disabled modes and UTC quota/reset details.
 2. Generate one UUID `requestKey` per intentional start and retain it for network retries. POST `{topicSlug:'javascript',mode:'MEDIUM',requestKey}`. Reuse the same key on retry, including after timeout. Quota is consumed at start.
-3. Keep the returned attempt ID and recover via GET on refresh. Render the stored question/option order without reshuffling. Active questions expose no `isCorrect`, `quality`, explanation or scoring metadata. `questionId` is the attempt-question UUID, not the logical import key.
+3. Keep the returned attempt ID and recover via GET on refresh. Render the stored question/option order without reshuffling. Active questions expose no `isCorrect`, `quality`, explanation or scoring metadata. `questionId` is the attempt-question UUID, not the logical import key. Each question includes `answered`: an empty selection with `answered: true` is a committed skip, not an unanswered question.
 4. Save `{selected:['option-id'],responseTimeMs:1200}`. `selected:[]` is a skip. Competitive answers are committed, including an empty selection; the frontend must confirm intent before committing a skip. Never assume browser navigation overrides the stored policy.
 5. Render the timer using returned server time and expiry. On expiry or 409 ATTEMPT_FINALIZED, refetch; the server finalizes lazily or via expiry jobs. Never award XP or calculate authoritative score locally.
-6. Send integrity events with increasing sequence numbers; retain the original sequence and contents for retries. Example `{sequence:1,type:'TAB_HIDDEN',clientTimestamp:new Date().toISOString()}`. Debounce duplicate UI listeners. Send VAD activity summaries only, never audio. Heartbeat requires `type:'INTEGRITY_HEARTBEAT'`.
+6. Initialize integrity sequencing from the returned `nextIntegritySequence`, preserving any locally queued higher sequences. Send integrity events with increasing sequence numbers; retain the original sequence and contents for retries. Example `{sequence:1,type:'TAB_HIDDEN',clientTimestamp:new Date().toISOString()}`. Debounce duplicate UI listeners. Send VAD activity summaries only, never audio. Heartbeat requires `type:'INTEGRITY_HEARTBEAT'`.
 7. Every integrity response may represent a finalized attempt. Competitive critical events can immediately terminate the assessment. Render the returned result and stop sending answers/timers. POST submit with `{}`; repeated submissions return the stored result.
 
 The result separates raw score, normalized score, objective accuracy, weighted quality, integrity, rank eligibility, XP and rating changes. Preserve nullable accuracy for weighted-only assessments. Display normalized score out of 100; rating and XP are separate measures. Review data is available only after finalization .
@@ -50,6 +50,6 @@ SINGLE_CHOICE/MULTIPLE_CHOICE options use `{id,text,isCorrect}`; WEIGHTED_CHOICE
 
 Validate first to get indexed/path-specific errors, then import. Validation does not write. Import revalidates and commits the entire batch atomically. Identical key/version/content is a no-op; different content under an existing key/version is rejected. Increment version for edits. Publication is a separate audited operation. Existing attempts retain old snapshots after edits, publication changes or config changes.
 
-## Remaining frontend work
+## Integration status and external work
 
-Wire the existing shadcn screens to a typed credentialed API client, session provider and query cache. Replace catalog/history/stats/leaderboard mocks, connect server-backed preferences, implement answer autosave/resume and pending/error states, and bind browser visibility/fullscreen/VAD events. Invalidate relevant queries after completion and SSE updates. Add browser end-to-end coverage for login, network retry, resume, expiry, Competitive auto-submit and admin import. Production catalog expansion and email delivery integration are separate operational/content work.
+The frontend connects authentication, catalog/history/stats/rankings, profile/preferences, answer autosave/resume, finalization, browser integrity signals, optional local VAD and admin imports. Browser coverage exercises these flows against the running API, including lost-response replay, cross-tab editing and SSE invalidation. Frontend signup fixtures pace requests to respect the real authentication limiter. Production catalog expansion, email delivery, deployment and operational scheduling remain separate work.

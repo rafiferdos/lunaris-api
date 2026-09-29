@@ -332,6 +332,17 @@ suite('PostgreSQL API and concurrency regressions', () => {
     expect(result.result!.reviews[0]!.selected).toEqual([q.options[0]!.id]);
     expect((await runtime.attempts.submit(userId, a.id)).result).toEqual(result.result);
   });
+  it('exposes committed skips and the next integrity sequence when resuming', async () => {
+    const a = await start('COMPETITIVE');
+    expect(a.nextIntegritySequence).toBe(0);
+    expect(a.questions[0]!.answered).toBe(false);
+    await runtime.attempts.answer(userId, a.id, a.questions[0]!.id, { selected: [] });
+    await runtime.attempts.event(userId, a.id, { sequence: 4, type: 'INTEGRITY_HEARTBEAT' });
+    const resumed = await runtime.attempts.get(userId, a.id);
+    expect(resumed.questions[0]).toMatchObject({ answered: true, selected: [] });
+    expect(resumed.questions[1]!.answered).toBe(false);
+    expect(resumed.nextIntegritySequence).toBe(5);
+  });
   it('rejects answers after expiry and finalizes abandoned attempts idempotently', async () => {
     const a = await start();
     now = new Date(+now + 700000);

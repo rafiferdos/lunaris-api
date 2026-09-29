@@ -1,6 +1,6 @@
 # Lunaris API
 
-Standalone Node 24 / TypeScript backend for Lunaris. Hono handles HTTP, Better Auth owns cookie sessions, PostgreSQL persists domain data through stable Drizzle ORM 0.45.x. Zod schemas validate input and public output and generate OpenAPI documentation. The frontend repository is not modified or required at runtime.
+Standalone Node 24 / TypeScript backend for Lunaris. Hono handles HTTP, Better Auth owns cookie sessions, PostgreSQL persists domain data through stable Drizzle ORM 0.45.x. Zod schemas validate input and public output and generate OpenAPI documentation. The sibling `lunaris` frontend consumes the API; it is not required to run this service.
 
 ## Run locally
 
@@ -82,4 +82,4 @@ Production needs reachable PostgreSQL, HTTPS API/frontend origins, a strong Bett
 
 Logs contain request IDs, paths, status, timing and authenticated user ID, never request bodies or credentials. The API enforces explicit credentialed CORS, trusted mutation origins, HttpOnly cookies, production secure cookies, ownership checks, server-only roles, per-user mutation limits, strict import metadata and a 2 MB body limit. Auth has its own database-backed rate limits. Deploy shared ingress connection limits and request limits for additional protection. Email/password auth works locally; email verification/password-reset delivery and social OAuth providers are not configured. Adding those flows requires provider credentials and delivery callbacks.
 
-See [frontend contract](docs/frontend-contract.md) for the remaining frontend wiring. Official integration references: [Hono](https://hono.dev/examples/zod-openapi), [Better Auth Hono](https://better-auth.com/docs/integrations/hono), [Better Auth Drizzle](https://better-auth.com/docs/adapters/drizzle), [Drizzle migrations](https://orm.drizzle.team/docs/migrations).
+See [frontend contract](docs/frontend-contract.md) for client transport, resume and live-update requirements. Official integration references: [Hono](https://hono.dev/examples/zod-openapi), [Better Auth Hono](https://better-auth.com/docs/integrations/hono), [Better Auth Drizzle](https://better-auth.com/docs/adapters/drizzle), [Drizzle migrations](https://orm.drizzle.team/docs/migrations).
