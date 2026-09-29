@@ -1,5 +1,5 @@
 import { z } from '@hono/zod-openapi';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import type { Database } from '../../db/client.js';
 import { profiles, preferences, topics } from '../../db/schema/domain.js';
 import { user } from '../../db/schema/auth.js';
@@ -9,6 +9,7 @@ export const profilePatch = z.strictObject({
   username: z
     .string()
     .regex(/^[a-z][a-z0-9_]{2,23}$/)
+    .nullable()
     .optional(),
   avatarUrl: z.url().startsWith('https://').nullable().optional(),
   bio: z.string().max(500).optional(),
@@ -101,6 +102,10 @@ export function createUserService(db: Database) {
             .insert(profiles)
             .values({ userId: id, ...profile })
             .onConflictDoUpdate({ target: profiles.userId, set: profile });
+        if (input.displayName !== undefined || input.username !== undefined)
+          await tx.execute(
+            sql`select pg_notify('lunaris_leaderboard', ${JSON.stringify({ refresh: true })})`,
+          );
       });
       return this.get(id);
     },
@@ -120,6 +125,13 @@ export function createUserService(db: Database) {
           .insert(preferences)
           .values({ userId: id, settings })
           .onConflictDoUpdate({ target: preferences.userId, set: { settings } });
+        if (
+          input.publicProfile !== undefined &&
+          input.publicProfile !== row?.settings.publicProfile
+        )
+          await tx.execute(
+            sql`select pg_notify('lunaris_leaderboard', ${JSON.stringify({ refresh: true })})`,
+          );
         return preferenceSchema.parse(settings);
       });
     },

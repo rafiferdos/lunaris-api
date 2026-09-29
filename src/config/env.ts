@@ -7,6 +7,9 @@ export const envSchema = z
     BETTER_AUTH_SECRET: z.string().min(32),
     BETTER_AUTH_URL: z.url(),
     FRONTEND_ORIGIN: z.url(),
+    RESEND_API_KEY: z.string().min(1).optional(),
+    EMAIL_FROM: z.email().optional(),
+    EXPIRY_SWEEP_INTERVAL_MS: z.coerce.number().int().min(10000).max(3600000).default(60000),
     LOG_LEVEL: z
       .enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent'])
       .default('info'),
@@ -14,6 +17,11 @@ export const envSchema = z
     SEED_PASSWORD: z.string().min(12).optional(),
   })
   .superRefine((v, c) => {
+    if (!!v.RESEND_API_KEY !== !!v.EMAIL_FROM)
+      c.addIssue({
+        code: 'custom',
+        message: 'Set both RESEND_API_KEY and EMAIL_FROM to enable password recovery.',
+      });
     if (
       v.NODE_ENV === 'production' &&
       (!v.BETTER_AUTH_URL.startsWith('https://') ||
@@ -40,7 +48,12 @@ export const envSchema = z
           message: 'Use an origin without path, credentials, query, or fragment.',
         });
     }
-  });
+  })
+  .transform((value) => ({
+    ...value,
+    FRONTEND_ORIGIN: new URL(value.FRONTEND_ORIGIN).origin,
+    BETTER_AUTH_URL: new URL(value.BETTER_AUTH_URL).origin,
+  }));
 export type Config = z.infer<typeof envSchema>;
 export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
   return envSchema.parse(source);

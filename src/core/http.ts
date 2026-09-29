@@ -64,6 +64,13 @@ export function createRouter(app: OpenAPIHono<HttpEnv>, auth: Auth, db: Database
       const session = await auth.api.getSession({ headers: c.req.raw.headers });
       assert(session, 401, 'UNAUTHENTICATED', 'Sign in to continue.');
       c.set('userId', session.user.id);
+      const expectedUser = c.req.header('x-lunaris-user');
+      assert(
+        !expectedUser || expectedUser === session.user.id,
+        409,
+        'SESSION_CHANGED',
+        'Your signed-in account changed. Reload this workspace before continuing.',
+      );
       if (options.admin)
         assert(session.user.role === 'ADMIN', 403, 'FORBIDDEN', 'Administrator access required.');
       if (options.method !== 'get') {

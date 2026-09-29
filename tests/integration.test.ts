@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
+import { beforeAll, afterAll, beforeEach, describe, it, expect, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { eq, sql } from 'drizzle-orm';
@@ -101,6 +101,111 @@ suite('PostgreSQL API and concurrency regressions', () => {
   afterAll(async () => {
     await events.close();
     await pool.end();
+  });
+  it('recovers passwords through one-time tokens and revokes existing sessions', async () => {
+    const mailRuntime = createApp(db, {
+      ...config,
+      RESEND_API_KEY: 'test-key-never-sent',
+      EMAIL_FROM: 'accounts@example.com',
+    });
+    const sent: { text: string; to: string[] }[] = [];
+    const send = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      expect(url).toBe('https://api.resend.com/emails');
+      sent.push(JSON.parse(String(init?.body)) as { text: string; to: string[] });
+      return new Response(JSON.stringify({ id: randomUUID() }), { status: 200 });
+    });
+    try {
+      const identity = (await db.select().from(user).where(eq(user.id, userId)))[0]!;
+      const authRequest = (path: string, body: unknown) =>
+        mailRuntime.app.request(`/api/auth/${path}`, {
+          method: 'POST',
+          headers: { origin: config.FRONTEND_ORIGIN, 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      expect(
+        (
+          await authRequest('request-password-reset', {
+            email: identity.email,
+            redirectTo: `${config.FRONTEND_ORIGIN}/reset-password`,
+          })
+        ).status,
+      ).toBe(200);
+      expect(sent).toHaveLength(1);
+      expect(sent[0]!.to).toEqual([identity.email]);
+      const link = sent[0]!.text.match(/https?:\/\/\S+/)![0];
+      const token = new URL(link).searchParams.get('token');
+      expect(token).toBeTruthy();
+      const resetBody = { token, newPassword: 'New-test-password-2026!' };
+      expect((await authRequest('reset-password', resetBody)).status).toBe(200);
+      expect((await authRequest('reset-password', resetBody)).status).toBe(400);
+      expect((await request('/api/v1/me')).status).toBe(401);
+      expect(
+        (
+          await authRequest('sign-in/email', {
+            email: identity.email,
+            password: resetBody.newPassword,
+          })
+        ).status,
+      ).toBe(200);
+      expect(
+        (
+          await authRequest('request-password-reset', {
+            email: 'unknown@example.com',
+            redirectTo: `${config.FRONTEND_ORIGIN}/reset-password`,
+          })
+        ).status,
+      ).toBe(200);
+      expect(sent).toHaveLength(1);
+    } finally {
+      send.mockRestore();
+    }
+  });
+  it('rejects a stale account identity before reading or mutating another account', async () => {
+    for (const method of ['GET', 'PATCH']) {
+      const response = await runtime.app.request('/api/v1/me', {
+        method,
+        headers: {
+          cookie,
+          origin: config.FRONTEND_ORIGIN,
+          'content-type': 'application/json',
+          'x-lunaris-user': adminId,
+        },
+        ...(method === 'PATCH'
+          ? { body: JSON.stringify({ displayName: 'Should not change' }) }
+          : {}),
+      });
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({ code: 'SESSION_CHANGED' });
+    }
+    expect(await (await request('/api/v1/me')).json()).toMatchObject({
+      data: { displayName: 'Integration User' },
+    });
+    expect((await request('/api/v1/me')).headers.get('cache-control')).toBe('no-store');
+  });
+  it('broadcasts privacy/name changes and allows clearing a username', async () => {
+    async function changed(path: string, body: unknown) {
+      const received = new Promise<unknown>((resolve) => {
+        const off = events.subscribe((value) => {
+          off();
+          resolve(value);
+        });
+      });
+      expect((await request(path, 'PATCH', body)).status).toBe(200);
+      await expect(received).resolves.toEqual({ refresh: true });
+    }
+    await changed('/api/v1/me', { username: 'audit_username' });
+    await changed('/api/v1/me', { username: null });
+    expect(await (await request('/api/v1/me')).json()).toMatchObject({ data: { username: null } });
+    await changed('/api/v1/me/preferences', { publicProfile: false });
+  });
+  it('closes an existing SSE stream after its session is revoked', async () => {
+    const response = await request('/api/v1/leaderboards/stream');
+    const reader = response.body!.getReader();
+    expect(new TextDecoder().decode((await reader.read()).value)).toContain('connected');
+    expect((await request('/api/auth/sign-out', 'POST', {})).status).toBe(200);
+    expect(new TextDecoder().decode((await reader.read()).value)).toContain('session.expired');
+    expect((await reader.read()).done).toBe(true);
+    await reader.cancel();
   });
   it('protects auth/admin, rejects invalid payloads and origins, serves docs/readiness', async () => {
     expect((await request('/api/v1/me', 'GET', undefined, '')).status).toBe(401);

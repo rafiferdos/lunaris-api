@@ -1,3 +1,4 @@
+import { passwordRecoveryEnabled, sendPasswordReset } from '../notifications/mail.js';
 import { betterAuth } from 'better-auth';
 import { openAPI } from 'better-auth/plugins';
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
@@ -12,7 +13,23 @@ export function createAuth(db: Database, config: Config) {
     secret: config.BETTER_AUTH_SECRET,
     baseURL: config.BETTER_AUTH_URL,
     trustedOrigins: [config.FRONTEND_ORIGIN],
-    emailAndPassword: { enabled: true, minPasswordLength: 12, maxPasswordLength: 128 },
+    emailAndPassword: {
+      enabled: true,
+      minPasswordLength: 12,
+      maxPasswordLength: 128,
+      revokeSessionsOnPasswordReset: true,
+      ...(passwordRecoveryEnabled(config)
+        ? {
+            sendResetPassword: async ({
+              user,
+              token,
+            }: {
+              user: { email: string };
+              token: string;
+            }) => sendPasswordReset(config, user.email, token),
+          }
+        : {}),
+    },
     user: {
       additionalFields: {
         role: { type: ['USER', 'ADMIN'], required: true, defaultValue: 'USER', input: false },
@@ -35,6 +52,8 @@ export function createAuth(db: Database, config: Config) {
       customRules: {
         '/sign-up/email': { window: 60, max: 5 },
         '/sign-in/email': { window: 60, max: 10 },
+        '/request-password-reset': { window: 60, max: 3 },
+        '/reset-password': { window: 60, max: 5 },
       },
     },
     session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24 },

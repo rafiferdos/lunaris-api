@@ -2,11 +2,14 @@ import pg from 'pg';
 import { EventEmitter } from 'node:events';
 import type { Logger } from 'pino';
 import { z } from 'zod';
-const scope = z.object({
-  topicId: z.uuid(),
-  category: z.enum(['TECHNICAL', 'INTERPERSONAL']),
-  mode: z.enum(['EASY', 'MEDIUM', 'COMPETITIVE']),
-});
+const scope = z.union([
+  z.object({ refresh: z.literal(true) }),
+  z.object({
+    topicId: z.uuid(),
+    category: z.enum(['TECHNICAL', 'INTERPERSONAL']),
+    mode: z.enum(['EASY', 'MEDIUM', 'COMPETITIVE']),
+  }),
+]);
 export function createLeaderboardEvents(url: string, logger: Logger) {
   const bus = new EventEmitter();
   bus.setMaxListeners(0);

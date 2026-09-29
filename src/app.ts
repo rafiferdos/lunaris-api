@@ -1,3 +1,4 @@
+import { passwordRecoveryEnabled } from './modules/notifications/mail.js';
 import { OpenAPIHono, z } from '@hono/zod-openapi';
 import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
@@ -50,11 +51,15 @@ export function createApp(
       origin: config.FRONTEND_ORIGIN,
       credentials: true,
       allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'OPTIONS'],
-      allowHeaders: ['Content-Type', 'X-Request-ID'],
-      exposeHeaders: ['X-Request-ID'],
+      allowHeaders: ['Content-Type', 'X-Request-ID', 'X-Lunaris-User'],
+      exposeHeaders: ['X-Request-ID', 'Retry-After'],
       maxAge: 600,
     }),
   );
+  app.use('/api/*', async (c, next) => {
+    c.header('Cache-Control', 'no-store');
+    await next();
+  });
   app.use('*', async (c, next) => {
     const started = performance.now();
     await next();
@@ -62,7 +67,7 @@ export function createApp(
       {
         requestId: c.get('requestId'),
         method: c.req.method,
-        path: c.req.path,
+        path: c.req.path.replace(/(\/api\/auth\/reset-password\/)[^/]+/, '$1[redacted]'),
         status: c.res.status,
         durationMs: Math.round(performance.now() - started),
         userId: c.get('userId'),
@@ -145,7 +150,31 @@ export function createApp(
       throw new DomainError(503, 'NOT_READY', 'A required dependency is unavailable.');
     }
   });
-  app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
+  app.openAPIRegistry.registerPath({
+    method: 'get',
+    path: '/api/capabilities',
+    summary: 'Public account recovery availability',
+    responses: {
+      200: {
+        description: 'Configured public features',
+        content: { 'application/json': { schema: z.object({ passwordReset: z.boolean() }) } },
+      },
+    },
+  });
+  app.get('/api/capabilities', (c) => c.json({ passwordReset: passwordRecoveryEnabled(config) }));
+  app.on(['GET', 'POST'], '/api/auth/*', async (c) => {
+    const expectedUser = c.req.header('x-lunaris-user');
+    if (expectedUser) {
+      const session = await auth.api.getSession({ headers: c.req.raw.headers });
+      assert(
+        session?.user.id === expectedUser,
+        409,
+        'SESSION_CHANGED',
+        'Your signed-in account changed. Reload before continuing.',
+      );
+    }
+    return auth.handler(c.req.raw);
+  });
   app.openAPIRegistry.registerComponent('securitySchemes', 'sessionCookie', {
     type: 'apiKey',
     in: 'cookie',
@@ -555,10 +584,25 @@ export function createApp(
     },
     async ({ query }) => admin.audit(query.limit, query.cursor),
   );
+  const streamsPerUser = new Map<string, number>();
   app.get('/api/v1/leaderboards/stream', async (c) => {
     const session = await auth.api.getSession({ headers: c.req.raw.headers });
     assert(session, 401, 'UNAUTHENTICATED', 'Sign in to continue.');
     assert(events, 503, 'STREAM_UNAVAILABLE', 'Live updates are unavailable.');
+    const openCount = streamsPerUser.get(session.user.id) ?? 0;
+    assert(
+      openCount < 5,
+      429,
+      'STREAM_LIMIT',
+      'Close another live leaderboard before opening this one.',
+    );
+    assert(
+      [...streamsPerUser.values()].reduce((sum, count) => sum + count, 0) < 500,
+      503,
+      'STREAM_CAPACITY',
+      'Live updates are busy. Try again shortly.',
+    );
+    streamsPerUser.set(session.user.id, openCount + 1);
     return streamSSE(c, async (stream) => {
       let stopped = false;
       const unsubscribe = events.subscribe((scope) => {
@@ -581,10 +625,23 @@ export function createApp(
         await stream.writeSSE({ event: 'connected', data: '{}' });
         while (!stopped) {
           await stream.sleep(15000);
-          if (!stopped) await stream.writeSSE({ event: 'keepalive', data: '{}' });
-          if (new Date(session.session.expiresAt) <= new Date()) break;
+          if (stopped) break;
+          const current = await auth.api.getSession({ headers: c.req.raw.headers });
+          if (
+            !current ||
+            current.user.id !== session.user.id ||
+            current.session.id !== session.session.id
+          ) {
+            await stream.writeSSE({ event: 'session.expired', data: '{}' });
+            break;
+          }
+          if (new Date(current.session.expiresAt) <= new Date()) break;
+          await stream.writeSSE({ event: 'keepalive', data: '{}' });
         }
       } finally {
+        const remaining = (streamsPerUser.get(session.user.id) ?? 1) - 1;
+        if (remaining > 0) streamsPerUser.set(session.user.id, remaining);
+        else streamsPerUser.delete(session.user.id);
         unsubscribe();
         offClose();
       }

@@ -10,7 +10,23 @@ const config = loadConfig(),
 pool.on('error', () => logger.error('Unexpected database pool error'));
 const events = createLeaderboardEvents(config.DATABASE_URL, logger);
 await events.start();
-const { app } = createApp(db, config, events);
+const { app, attempts } = createApp(db, config, events);
+let sweep: Promise<void> | undefined;
+function sweepExpired() {
+  if (sweep) return;
+  sweep = attempts
+    .expire()
+    .then((result) => {
+      if (result.processed) logger.info(result, 'Expired attempts finalized');
+    })
+    .catch(() => logger.error('Expiry sweep failed; will retry'))
+    .finally(() => {
+      sweep = undefined;
+    });
+}
+const expiryTimer = setInterval(sweepExpired, config.EXPIRY_SWEEP_INTERVAL_MS);
+expiryTimer.unref();
+sweepExpired();
 const server = serve({ fetch: app.fetch, port: config.PORT }, () =>
   logger.info({ port: config.PORT }, 'Lunaris API listening'),
 );
@@ -18,6 +34,7 @@ let stopping = false;
 async function shutdown() {
   if (stopping) return;
   stopping = true;
+  clearInterval(expiryTimer);
   logger.info('Graceful shutdown started');
   const deadline = setTimeout(() => {
     if ('closeAllConnections' in server) server.closeAllConnections();
@@ -32,6 +49,7 @@ async function shutdown() {
     await events.close();
     if ('closeIdleConnections' in server) server.closeIdleConnections();
     await drained;
+    await sweep;
     await pool.end();
   } catch (error) {
     logger.error({ errorName: error instanceof Error ? error.name : 'Unknown' }, 'Shutdown failed');
