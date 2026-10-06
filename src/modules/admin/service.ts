@@ -113,7 +113,7 @@ export function createAdminService(db: Database) {
         errors: report.errors,
       };
     },
-    async import(adminId: string, document: unknown) {
+    async import(adminId: string | null, document: unknown) {
       return db.transaction(async (tx) => {
         await tx.execute(
           (await import('drizzle-orm'))

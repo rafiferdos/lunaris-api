@@ -1,7 +1,12 @@
 import { z } from '@hono/zod-openapi';
 import { eq, inArray, sql } from 'drizzle-orm';
 import type { Database } from '../../db/client.js';
-import { profiles, preferences, topics } from '../../db/schema/domain.js';
+import {
+  profiles,
+  preferences,
+  topics,
+  notificationSubscriptions,
+} from '../../db/schema/domain.js';
 import { user } from '../../db/schema/auth.js';
 import { assert } from '../../core/errors.js';
 export const profilePatch = z.strictObject({
@@ -111,7 +116,15 @@ export function createUserService(db: Database) {
     },
     async preferences(id: string) {
       const [row] = await db.select().from(preferences).where(eq(preferences.userId, id));
-      return preferenceSchema.parse(row?.settings ?? {});
+      const [subscription] = await db
+        .select()
+        .from(notificationSubscriptions)
+        .where(eq(notificationSubscriptions.userId, id));
+      return preferenceSchema.parse({
+        ...row?.settings,
+        email: !!subscription?.summariesAt,
+        reminders: !!subscription?.remindersAt,
+      });
     },
     async setPreferences(id: string, input: z.infer<typeof preferenceSchema>) {
       return db.transaction(async (tx) => {
@@ -120,7 +133,35 @@ export function createUserService(db: Database) {
             .sql`select pg_advisory_xact_lock(hashtextextended(${`preferences:${id}`},0))`,
         );
         const [row] = await tx.select().from(preferences).where(eq(preferences.userId, id));
-        const settings = { ...row?.settings, ...input };
+        const [subscription] = await tx
+          .select()
+          .from(notificationSubscriptions)
+          .where(eq(notificationSubscriptions.userId, id));
+        const consent = {
+          summariesAt:
+            input.email === undefined
+              ? (subscription?.summariesAt ?? null)
+              : input.email
+                ? (subscription?.summariesAt ?? new Date())
+                : null,
+          remindersAt:
+            input.reminders === undefined
+              ? (subscription?.remindersAt ?? null)
+              : input.reminders
+                ? (subscription?.remindersAt ?? new Date())
+                : null,
+        };
+        if (input.email !== undefined || input.reminders !== undefined)
+          await tx
+            .insert(notificationSubscriptions)
+            .values({ userId: id, ...consent })
+            .onConflictDoUpdate({ target: notificationSubscriptions.userId, set: consent });
+        const settings = {
+          ...row?.settings,
+          ...input,
+          email: !!consent.summariesAt,
+          reminders: !!consent.remindersAt,
+        };
         await tx
           .insert(preferences)
           .values({ userId: id, settings })

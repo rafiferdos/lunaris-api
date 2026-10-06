@@ -10,7 +10,7 @@ const config = loadConfig(),
 pool.on('error', () => logger.error('Unexpected database pool error'));
 const events = createLeaderboardEvents(config.DATABASE_URL, logger);
 await events.start();
-const { app, attempts } = createApp(db, config, events);
+const { app, attempts, notifications } = createApp(db, config, events);
 let sweep: Promise<void> | undefined;
 function sweepExpired() {
   if (sweep) return;
@@ -24,6 +24,22 @@ function sweepExpired() {
       sweep = undefined;
     });
 }
+let delivery: Promise<unknown> | undefined;
+function deliverNotifications() {
+  if (delivery) return;
+  delivery = notifications
+    .run()
+    .then((result) => {
+      if (result.sent || result.failed) logger.info(result, 'Notification delivery');
+    })
+    .catch(() => logger.error('Notification worker failed; will retry'))
+    .finally(() => {
+      delivery = undefined;
+    });
+}
+const deliveryTimer = setInterval(deliverNotifications, 60000);
+deliveryTimer.unref();
+deliverNotifications();
 const expiryTimer = setInterval(sweepExpired, config.EXPIRY_SWEEP_INTERVAL_MS);
 expiryTimer.unref();
 sweepExpired();
@@ -35,6 +51,7 @@ async function shutdown() {
   if (stopping) return;
   stopping = true;
   clearInterval(expiryTimer);
+  clearInterval(deliveryTimer);
   logger.info('Graceful shutdown started');
   const deadline = setTimeout(() => {
     if ('closeAllConnections' in server) server.closeAllConnections();
@@ -50,6 +67,7 @@ async function shutdown() {
     if ('closeIdleConnections' in server) server.closeIdleConnections();
     await drained;
     await sweep;
+    await delivery;
     await pool.end();
   } catch (error) {
     logger.error({ errorName: error instanceof Error ? error.name : 'Unknown' }, 'Shutdown failed');

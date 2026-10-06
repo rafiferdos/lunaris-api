@@ -15,6 +15,13 @@
       "when": 1790566813519,
       "tag": "0001_immutability",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791256869108,
+      "tag": "0002_young_kabuki",
+      "breakpoints": true
     }
   ]
 }

@@ -1,3 +1,8 @@
+import {
+  createNotificationService,
+  notificationDeliveryEnabled,
+} from './modules/notifications/service.js';
+import { timingSafeEqual } from 'node:crypto';
 import { passwordRecoveryEnabled } from './modules/notifications/mail.js';
 import { OpenAPIHono, z } from '@hono/zod-openapi';
 import { cors } from 'hono/cors';
@@ -39,6 +44,7 @@ export function createApp(
     logger = createLogger(config);
   const attempts = createAttemptService(db, clock),
     assessments = createAssessmentService(db, attempts),
+    notifications = createNotificationService(db, config, clock),
     users = createUserService(db),
     admin = createAdminService(db),
     stats = createStatsService(db),
@@ -59,6 +65,11 @@ export function createApp(
   app.use('/api/*', async (c, next) => {
     c.header('Cache-Control', 'no-store');
     await next();
+    if (c.res.headers.get('content-type')?.startsWith('text/event-stream')) {
+      // Proxies must flush events immediately instead of buffering compressed chunks.
+      c.header('Cache-Control', 'no-store, no-cache, no-transform');
+      c.header('X-Accel-Buffering', 'no');
+    }
   });
   app.use('*', async (c, next) => {
     const started = performance.now();
@@ -141,8 +152,27 @@ export function createApp(
   app.notFound((c) => {
     throw new DomainError(404, 'NOT_FOUND', `No route for ${c.req.method} ${c.req.path}.`);
   });
+  app.get('/api/jobs/daily', async (c) => {
+    const expected = Buffer.from(`Bearer ${config.CRON_SECRET ?? ''}`);
+    const received = Buffer.from(c.req.header('authorization') ?? '');
+    assert(
+      config.CRON_SECRET &&
+        expected.length === received.length &&
+        timingSafeEqual(expected, received),
+      401,
+      'UNAUTHORIZED',
+      'A valid job credential is required.',
+    );
+    const expired = await attempts.expire();
+    const delivery = await notifications.run();
+    return c.json({ data: { expired, notifications: delivery } });
+  });
+  app.post('/api/notifications/unsubscribe', async (c) => {
+    await notifications.unsubscribe(c.req.query('token') ?? '');
+    return c.json({ data: { unsubscribed: true } });
+  });
   app.get('/health/live', (c) => c.json({ data: { status: 'alive' } }));
-  app.get('/health/ready', async (c) => {
+  app.on('GET', ['/health/ready', '/api/health/ready'], async (c) => {
     try {
       await db.execute(sql`select 1`);
       return c.json({ data: { status: 'ready' } });
@@ -157,11 +187,25 @@ export function createApp(
     responses: {
       200: {
         description: 'Configured public features',
-        content: { 'application/json': { schema: z.object({ passwordReset: z.boolean() }) } },
+        content: {
+          'application/json': {
+            schema: z.object({
+              passwordReset: z.boolean(),
+              emailVerification: z.boolean(),
+              notifications: z.boolean(),
+            }),
+          },
+        },
       },
     },
   });
-  app.get('/api/capabilities', (c) => c.json({ passwordReset: passwordRecoveryEnabled(config) }));
+  app.get('/api/capabilities', (c) =>
+    c.json({
+      passwordReset: passwordRecoveryEnabled(config),
+      emailVerification: passwordRecoveryEnabled(config),
+      notifications: notificationDeliveryEnabled(config),
+    }),
+  );
   app.on(['GET', 'POST'], '/api/auth/*', async (c) => {
     const expectedUser = c.req.header('x-lunaris-user');
     if (expectedUser) {
@@ -588,7 +632,6 @@ export function createApp(
   app.get('/api/v1/leaderboards/stream', async (c) => {
     const session = await auth.api.getSession({ headers: c.req.raw.headers });
     assert(session, 401, 'UNAUTHENTICATED', 'Sign in to continue.');
-    assert(events, 503, 'STREAM_UNAVAILABLE', 'Live updates are unavailable.');
     const openCount = streamsPerUser.get(session.user.id) ?? 0;
     assert(
       openCount < 5,
@@ -605,25 +648,26 @@ export function createApp(
     streamsPerUser.set(session.user.id, openCount + 1);
     return streamSSE(c, async (stream) => {
       let stopped = false;
-      const unsubscribe = events.subscribe((scope) => {
+      const unsubscribe = events?.subscribe((scope) => {
         void stream
           .writeSSE({ event: 'leaderboard.updated', data: JSON.stringify(scope) })
           .catch(() => {
             stopped = true;
           });
       });
-      const offClose = events.onClose(() => {
+      const offClose = events?.onClose(() => {
         stopped = true;
         stream.abort();
       });
       stream.onAbort(() => {
         stopped = true;
-        unsubscribe();
-        offClose();
+        unsubscribe?.();
+        offClose?.();
       });
       try {
         await stream.writeSSE({ event: 'connected', data: '{}' });
-        while (!stopped) {
+        const startedAt = Date.now();
+        while (!stopped && (events || Date.now() - startedAt < 210000)) {
           await stream.sleep(15000);
           if (stopped) break;
           const current = await auth.api.getSession({ headers: c.req.raw.headers });
@@ -636,14 +680,17 @@ export function createApp(
             break;
           }
           if (new Date(current.session.expiresAt) <= new Date()) break;
-          await stream.writeSSE({ event: 'keepalive', data: '{}' });
+          await stream.writeSSE({
+            event: events ? 'keepalive' : 'leaderboard.updated',
+            data: events ? '{}' : '{"refresh":true}',
+          });
         }
       } finally {
         const remaining = (streamsPerUser.get(session.user.id) ?? 1) - 1;
         if (remaining > 0) streamsPerUser.set(session.user.id, remaining);
         else streamsPerUser.delete(session.user.id);
-        unsubscribe();
-        offClose();
+        unsubscribe?.();
+        offClose?.();
       }
     });
   });
@@ -671,7 +718,7 @@ export function createApp(
   });
   app.get('/docs', apiReference({ url: '/openapi.json' }));
   app.get('/docs/auth', apiReference({ url: '/api/auth/open-api/generate-schema' }));
-  return { app, auth, attempts, admin, stats, leaderboard };
+  return { app, auth, attempts, admin, stats, leaderboard, notifications };
 }
 function categorySchemaForStats() {
   return z.enum(['TECHNICAL', 'INTERPERSONAL']);

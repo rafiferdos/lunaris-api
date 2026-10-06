@@ -9,6 +9,14 @@ export const envSchema = z
     FRONTEND_ORIGIN: z.url(),
     RESEND_API_KEY: z.string().min(1).optional(),
     EMAIL_FROM: z.email().optional(),
+    SMTP_HOST: z
+      .string()
+      .regex(/^[a-z0-9.-]+$/i)
+      .optional(),
+    SMTP_USER: z.email().optional(),
+    SMTP_PASSWORD: z.string().min(1).optional(),
+    BOOTSTRAP_ADMIN_EMAIL: z.email().optional(),
+    CRON_SECRET: z.string().min(32).optional(),
     EXPIRY_SWEEP_INTERVAL_MS: z.coerce.number().int().min(10000).max(3600000).default(60000),
     LOG_LEVEL: z
       .enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent'])
@@ -17,10 +25,18 @@ export const envSchema = z
     SEED_PASSWORD: z.string().min(12).optional(),
   })
   .superRefine((v, c) => {
-    if (!!v.RESEND_API_KEY !== !!v.EMAIL_FROM)
+    const smtp = [v.SMTP_HOST, v.SMTP_USER, v.SMTP_PASSWORD].filter(Boolean).length;
+    if ((smtp !== 0 && smtp !== 3) || (v.RESEND_API_KEY && smtp))
       c.addIssue({
         code: 'custom',
-        message: 'Set both RESEND_API_KEY and EMAIL_FROM to enable password recovery.',
+        message: 'Configure exactly one provider: Resend or SMTP with host, user, and password.',
+      });
+    if (v.SMTP_HOST === 'smtp.gmail.com' && v.EMAIL_FROM !== v.SMTP_USER)
+      c.addIssue({ code: 'custom', message: 'Gmail sender must match SMTP_USER.' });
+    if (!!(v.RESEND_API_KEY || smtp === 3) !== !!v.EMAIL_FROM)
+      c.addIssue({
+        code: 'custom',
+        message: 'Set EMAIL_FROM and a complete Resend or SMTP configuration to enable email.',
       });
     if (
       v.NODE_ENV === 'production' &&

@@ -305,3 +305,39 @@ export const requestLimits = pgTable(
   (t) => [index('request_limits_expiry').on(t.expiresAt)],
 );
 export type Scope = { topic?: string; category?: Category; mode?: Mode };
+
+// Explicit consent is separate from legacy UI preferences, which defaulted to true.
+export const notificationSubscriptions = pgTable('notification_subscriptions', {
+  userId: owner().primaryKey(),
+  summariesAt: timestamp('summaries_at', { withTimezone: true }),
+  remindersAt: timestamp('reminders_at', { withTimezone: true }),
+});
+export const notificationJobs = pgTable(
+  'notification_jobs',
+  {
+    id: id(),
+    userId: owner(),
+    kind: text('kind').$type<'summary' | 'reminder'>().notNull(),
+    period: text('period').notNull(),
+    payload: jsonb('payload').$type<{ subject: string; text: string; email: string }>().notNull(),
+    status: text('status')
+      .$type<'pending' | 'processing' | 'sent' | 'cancelled' | 'failed'>()
+      .notNull()
+      .default('pending'),
+    tries: integer('tries').notNull().default(0),
+    nextAt: timestamp('next_at', { withTimezone: true }).notNull().defaultNow(),
+    lease: uuid('lease'),
+    leaseUntil: timestamp('lease_until', { withTimezone: true }),
+    createdAt: created(),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex('notification_user_period').on(t.userId, t.kind, t.period),
+    index('notification_due').on(t.status, t.nextAt),
+    check('notification_kind', sql`${t.kind} in ('summary','reminder')`),
+    check(
+      'notification_status',
+      sql`${t.status} in ('pending','processing','sent','cancelled','failed')`,
+    ),
+  ],
+);

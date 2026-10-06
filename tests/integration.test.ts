@@ -8,11 +8,24 @@ import { loadConfig } from '../src/config/env.js';
 import { createApp } from '../src/app.js';
 import { seedCatalog, seedDocument } from '../src/db/seed.js';
 import { user } from '../src/db/schema/auth.js';
-import { attempts, xpLedger, ratingEvents, questions, configs } from '../src/db/schema/domain.js';
+import {
+  attempts,
+  xpLedger,
+  ratingEvents,
+  questions,
+  configs,
+  notificationJobs,
+  notificationSubscriptions,
+  preferences,
+} from '../src/db/schema/domain.js';
 import { createAttemptService } from '../src/modules/attempts/service.js';
 import { rebuildUser } from '../src/modules/stats/rebuild.js';
 import { attemptSchema } from '../src/openapi/schemas.js';
 import { createLeaderboardEvents } from '../src/modules/leaderboard/events.js';
+import {
+  createNotificationService,
+  unsubscribeToken,
+} from '../src/modules/notifications/service.js';
 import { createLogger } from '../src/core/logger.js';
 const env = loadConfig();
 const testUrl = env.TEST_DATABASE_URL;
@@ -103,6 +116,7 @@ suite('PostgreSQL API and concurrency regressions', () => {
     await pool.end();
   });
   it('recovers passwords through one-time tokens and revokes existing sessions', async () => {
+    await db.update(user).set({ emailVerified: true }).where(eq(user.id, userId));
     const mailRuntime = createApp(db, {
       ...config,
       RESEND_API_KEY: 'test-key-never-sent',
@@ -160,6 +174,134 @@ suite('PostgreSQL API and concurrency regressions', () => {
       send.mockRestore();
     }
   });
+  it('requires email verification with configured delivery and accepts the native verification link', async () => {
+    const email = `verification-${randomUUID()}@example.com`;
+    const configured = createApp(db, {
+      ...config,
+      RESEND_API_KEY: 'test-only',
+      EMAIL_FROM: 'accounts@example.com',
+      BOOTSTRAP_ADMIN_EMAIL: email,
+    });
+    const sent: { text: string; to: string[] }[] = [];
+    const transport = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      sent.push(JSON.parse(String(init?.body)) as { text: string; to: string[] });
+      return new Response('{}', { status: 200 });
+    });
+    const call = (path: string, body: unknown) =>
+      configured.app.request(`/api/auth/${path}`, {
+        method: 'POST',
+        headers: { origin: config.FRONTEND_ORIGIN, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    try {
+      expect(
+        (
+          await call('sign-up/email', {
+            name: 'Verified User',
+            email,
+            password: 'Test-password-2026!',
+          })
+        ).status,
+      ).toBe(200);
+      expect(sent).toHaveLength(1);
+      expect((await db.select().from(user).where(eq(user.email, email)))[0]?.role).toBe('USER');
+      const signupLink = new URL(sent[0]!.text.match(/https?:\/\/\S+/)![0]);
+      expect(signupLink.origin).toBe(config.FRONTEND_ORIGIN);
+      expect((await call('sign-in/email', { email, password: 'Test-password-2026!' })).status).toBe(
+        403,
+      );
+      expect((await db.select().from(user).where(eq(user.email, email)))[0]?.role).toBe('USER');
+      const verified = await configured.app.request(signupLink.pathname + signupLink.search);
+      expect(verified.status).toBe(302);
+      expect(verified.headers.get('location')).toBe(
+        `${config.FRONTEND_ORIGIN}/login?verified=success`,
+      );
+      expect((await call('sign-in/email', { email, password: 'Test-password-2026!' })).status).toBe(
+        200,
+      );
+      expect((await db.select().from(user).where(eq(user.email, email)))[0]).toMatchObject({
+        emailVerified: true,
+        role: 'ADMIN',
+      });
+      expect((await db.select().from(user).where(eq(user.id, userId)))[0]?.role).toBe('USER');
+    } finally {
+      transport.mockRestore();
+    }
+  });
+  it('does not treat legacy notification flags as consent and persists explicit opt-ins', async () => {
+    await db.insert(preferences).values({ userId, settings: { email: true, reminders: true } });
+    expect((await (await request('/api/v1/me/preferences')).json()).data).toMatchObject({
+      email: false,
+      reminders: false,
+    });
+    expect(
+      (await (await request('/api/v1/me/preferences', 'PATCH', { email: true })).json()).data,
+    ).toMatchObject({ email: true, reminders: false });
+    expect(
+      (
+        await db
+          .select()
+          .from(notificationSubscriptions)
+          .where(eq(notificationSubscriptions.userId, userId))
+      )[0]?.summariesAt,
+    ).toBeInstanceOf(Date);
+  });
+  it('deduplicates concurrent notification workers, retries identical payloads, and honors unsubscribe', async () => {
+    const at = new Date(now.getTime() - 10 * 86400000);
+    await db.update(user).set({ emailVerified: true, createdAt: at }).where(eq(user.id, userId));
+    await db.insert(notificationSubscriptions).values({ userId, summariesAt: at, remindersAt: at });
+    const mailConfig = {
+      ...config,
+      RESEND_API_KEY: 'test-only',
+      EMAIL_FROM: 'accounts@example.com',
+      CRON_SECRET: 'test-only-job-key-that-is-long-enough',
+    };
+    const mails: { key: string; text: string }[] = [];
+    let rejects = true;
+    const worker = createNotificationService(
+      db,
+      mailConfig,
+      () => now,
+      async (mail) => {
+        mails.push(mail);
+        if (rejects) throw new Error('Provider outage');
+      },
+    );
+    await Promise.all([worker.run(), worker.run()]);
+    expect(mails).toHaveLength(2);
+    expect(new Set(mails.map((m) => m.key)).size).toBe(2);
+    rejects = false;
+    now = new Date(now.getTime() + 5 * 60000);
+    await worker.unsubscribe(unsubscribeToken(mailConfig, userId, 'reminder', now));
+    await worker.run();
+    expect(mails).toHaveLength(3);
+    expect(mails[2]!.key).toBe(mails.find((m) => m.text.includes('Your Lunaris week'))!.key);
+    const jobs = await db
+      .select()
+      .from(notificationJobs)
+      .where(eq(notificationJobs.userId, userId));
+    expect(jobs.map((j) => j.status).sort()).toEqual(['cancelled', 'sent']);
+    expect((await request('/api/notifications/unsubscribe?token=forged', 'POST')).status).toBe(400);
+  });
+  it('does not send notification jobs to unverified addresses and rejects unauthenticated job runs', async () => {
+    const at = new Date(now.getTime() - 10 * 86400000);
+    await db.insert(notificationSubscriptions).values({ userId, summariesAt: at, remindersAt: at });
+    const deliver = vi.fn();
+    const worker = createNotificationService(
+      db,
+      {
+        ...config,
+        RESEND_API_KEY: 'test-only',
+        EMAIL_FROM: 'accounts@example.com',
+        CRON_SECRET: 'test-only-job-key-that-is-long-enough',
+      },
+      () => now,
+      deliver,
+    );
+    await worker.run();
+    expect(deliver).not.toHaveBeenCalled();
+    expect((await request('/api/jobs/daily')).status).toBe(401);
+  });
   it('rejects a stale account identity before reading or mutating another account', async () => {
     for (const method of ['GET', 'PATCH']) {
       const response = await runtime.app.request('/api/v1/me', {
@@ -177,6 +319,17 @@ suite('PostgreSQL API and concurrency regressions', () => {
       expect(response.status).toBe(409);
       expect(await response.json()).toMatchObject({ code: 'SESSION_CHANGED' });
     }
+    const logout = await runtime.app.request('/api/auth/sign-out', {
+      method: 'POST',
+      headers: {
+        cookie,
+        origin: config.FRONTEND_ORIGIN,
+        'content-type': 'application/json',
+        'x-lunaris-user': adminId,
+      },
+      body: '{}',
+    });
+    expect(logout.status).toBe(409);
     expect(await (await request('/api/v1/me')).json()).toMatchObject({
       data: { displayName: 'Integration User' },
     });
@@ -200,6 +353,8 @@ suite('PostgreSQL API and concurrency regressions', () => {
   });
   it('closes an existing SSE stream after its session is revoked', async () => {
     const response = await request('/api/v1/leaderboards/stream');
+    expect(response.headers.get('cache-control')).toContain('no-transform');
+    expect(response.headers.get('x-accel-buffering')).toBe('no');
     const reader = response.body!.getReader();
     expect(new TextDecoder().decode((await reader.read()).value)).toContain('connected');
     expect((await request('/api/auth/sign-out', 'POST', {})).status).toBe(200);

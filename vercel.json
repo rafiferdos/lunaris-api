@@ -1,0 +1,18 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "hono",
+  "regions": ["sin1"],
+  "functions": {
+    "index.ts": {
+      "maxDuration": 240
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/jobs/daily",
+      "schedule": "0 2 * * *"
+    }
+  ],
+  "buildCommand": "pnpm db:migrate && pnpm db:release && pnpm build && if [ \"$RUN_PRODUCTION_SMOKE\" = \"1\" ]; then pnpm test:launch; fi",
+  "installCommand": "pnpm install --frozen-lockfile"
+}
