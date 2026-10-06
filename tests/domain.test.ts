@@ -7,7 +7,8 @@ import { assessIntegrity, type IntegrityEvent } from '../src/modules/integrity/v
 import { streak, quotaBounds } from '../src/modules/stats/streak.js';
 import { selectQuestions } from '../src/modules/assessments/selection.js';
 import { policies } from '../src/modules/assessments/policy.js';
-import seed from '../src/db/seed-data.json' with { type: 'json' };
+import { seedDocument } from './fixtures.js';
+const seed = { document: seedDocument };
 const bank = importSchema.parse(seed.document).questions;
 const single = bank.find((q) => q.type === 'SINGLE_CHOICE')!;
 const multi = bank.find((q) => q.type === 'MULTIPLE_CHOICE')!;
@@ -15,7 +16,8 @@ const weighted = bank.find((q) => q.type === 'WEIGHTED_CHOICE')!;
 const correct = (q: Question) =>
   q.options.filter((o) => 'isCorrect' in o && o.isCorrect).map((o) => o.id);
 describe('scoring/v1', () => {
-  it('validates all seed questions', () => expect(bank).toHaveLength(25));
+  it('validates all seed questions', () =>
+    expect(bank).toHaveLength(seedDocument.questions.length));
   it('scores a single answer and skipped negatives', () => {
     expect(evaluate(single, correct(single), 'MEDIUM').points).toBe(2);
     expect(evaluate(single, [], 'COMPETITIVE')).toMatchObject({ outcome: 'SKIPPED', points: -2 });
@@ -134,13 +136,13 @@ describe('integrity and UTC policies', () => {
       '2026-09-21T00:00:00.000Z',
     );
   });
-  it('falls back to available questions without duplicating selections', () => {
+  it('selects the configured count without duplicating selections', () => {
     const pool = bank
       .filter((q) => q.topicSlug === 'javascript')
       .map((content, i) => ({ id: String(i), content }));
     expect(
       new Set(selectQuestions(pool, policies.COMPETITIVE, new Set(['0', '1'])).map((q) => q.id))
         .size,
-    ).toBe(5);
+    ).toBe(policies.COMPETITIVE.questionCount);
   });
 });

@@ -6,3 +6,6 @@ coverage/
 !.env.example
 *.log
 .vercel/
+
+# Private operator documents must never be committed.
+.operator/

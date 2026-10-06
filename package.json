@@ -9,7 +9,7 @@
   "packageManager": "pnpm@12.4.1",
   "scripts": {
     "dev": "tsx watch --env-file=.env src/server.ts",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
     "start": "node --env-file-if-exists=.env dist/server.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
@@ -30,7 +30,9 @@
     "jobs:rebuild": "tsx --env-file=.env src/jobs/rebuild.ts",
     "test:smoke": "tsx --env-file=.env scripts/smoke.ts",
     "db:release": "tsx --env-file-if-exists=.env src/db/release.ts",
-    "test:launch": "tsx --env-file-if-exists=.env scripts/launch-smoke.ts"
+    "test:launch": "tsx --env-file-if-exists=.env scripts/launch-smoke.ts",
+    "db:content": "tsx --env-file-if-exists=.env scripts/question-content.ts",
+    "db:audit": "tsx --env-file-if-exists=.env scripts/question-content.ts"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.7.6",

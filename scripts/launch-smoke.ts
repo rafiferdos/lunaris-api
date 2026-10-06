@@ -61,7 +61,16 @@ try {
   await request('/api/v1/me/preferences', 'PATCH', { publicProfile: false });
   await request('/api/auth/get-session');
   const catalog = z
-    .object({ data: z.array(z.object({ modes: z.array(z.object({ available: z.boolean() })) })) })
+    .object({
+      data: z.array(
+        z.object({
+          slug: z.string(),
+          modes: z.array(
+            z.object({ mode: z.string(), questionCount: z.number(), available: z.boolean() }),
+          ),
+        }),
+      ),
+    })
     .parse(await (await request('/api/v1/assessments')).json());
   assert.equal(catalog.data.length, 26);
   assert.ok(
@@ -78,7 +87,11 @@ try {
       })
     ).json(),
   ).data;
-  assert.equal(attempt.questions.length, 5);
+  assert.equal(
+    attempt.questions.length,
+    catalog.data.find((t) => t.slug === 'javascript')!.modes.find((m) => m.mode === 'MEDIUM')!
+      .questionCount,
+  );
   assert.ok(!JSON.stringify(attempt.questions).includes('isCorrect'));
   for (const question of attempt.questions)
     await request(`/api/v1/attempts/${attempt.id}/answers/${question.id}`, 'PUT', {

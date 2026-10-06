@@ -20,6 +20,26 @@ const common = {
   explanation: z.string().min(1).max(12000),
   tags: z.array(z.string().trim().min(1).max(80)).min(1).max(12),
   estimatedTimeSeconds: z.number().int().min(5).max(1800),
+  provenance: z
+    .strictObject({
+      collectionId: z.string().regex(/^[a-z0-9][a-z0-9_-]{2,100}$/),
+      authorship: z.literal('ORIGINAL_SOURCE_BASED'),
+      sources: z
+        .array(
+          z.strictObject({
+            url: z
+              .url()
+              .refine((url) => new URL(url).protocol === 'https:', 'Sources must use HTTPS.'),
+            title: z.string().trim().min(3).max(240),
+            accessedOn: z.iso.date(),
+          }),
+        )
+        .min(1)
+        .max(6),
+      learningObjective: z.string().trim().min(10).max(1000),
+      difficultyRationale: z.string().trim().min(10).max(1000),
+    })
+    .optional(),
   status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']),
 };
 export const questionSchema = z
@@ -67,8 +87,20 @@ export const questionSchema = z
         path: ['options'],
         message: 'Include at least one correct option and one distractor.',
       });
-    if (q.type === 'WEIGHTED_CHOICE' && !q.options.some((o) => o.quality === 'BEST'))
-      c.addIssue({ code: 'custom', path: ['options'], message: 'Include a BEST response.' });
+    if (
+      q.type === 'WEIGHTED_CHOICE' &&
+      (!q.options.some((o) => o.quality === 'BEST') || q.options.every((o) => o.quality === 'BEST'))
+    )
+      c.addIssue({
+        code: 'custom',
+        path: ['options'],
+        message: 'Include a BEST response and at least one lower-quality response.',
+      });
+    if (
+      new Set(q.options.map((o) => o.text.trim().toLocaleLowerCase('en-US'))).size !==
+      q.options.length
+    )
+      c.addIssue({ code: 'custom', path: ['options'], message: 'Option text must be distinct.' });
     if (q.language && !q.code)
       c.addIssue({
         code: 'custom',

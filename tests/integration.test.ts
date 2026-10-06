@@ -6,7 +6,8 @@ import { z } from 'zod';
 import { createDatabase } from '../src/db/client.js';
 import { loadConfig } from '../src/config/env.js';
 import { createApp } from '../src/app.js';
-import { seedCatalog, seedDocument } from '../src/db/seed.js';
+import { seedCatalog } from '../src/db/catalog.js';
+import { seedDocument } from './fixtures.js';
 import { user } from '../src/db/schema/auth.js';
 import {
   attempts,
@@ -605,7 +606,8 @@ suite('PostgreSQL API and concurrency regressions', () => {
   });
   it('rejects answers after expiry and finalizes abandoned attempts idempotently', async () => {
     const a = await start();
-    now = new Date(+now + 700000);
+    now = new Date(a.expiresAt);
+    now = new Date(+now + 1);
     await expect(
       runtime.attempts.answer(userId, a.id, a.questions[0]!.id, { selected: [] }),
     ).rejects.toMatchObject({ code: 'ATTEMPT_FINALIZED' });
@@ -623,7 +625,7 @@ suite('PostgreSQL API and concurrency regressions', () => {
   });
   it('validates atomic imports, duplicate content, versions and unknown topics', async () => {
     const duplicate = await runtime.admin.import(adminId, seedDocument);
-    expect(duplicate).toMatchObject({ created: 0, alreadyExists: 25 });
+    expect(duplicate).toMatchObject({ created: 0, alreadyExists: seedDocument.questions.length });
     const newDoc = structuredClone(seedDocument);
     newDoc.questions = newDoc.questions.slice(0, 2).map((q) => ({ ...q, version: 2 }));
     newDoc.questions[1]!.topicSlug = 'unknown-topic';
@@ -672,6 +674,34 @@ suite('PostgreSQL API and concurrency regressions', () => {
       }),
     ).rejects.toMatchObject({ code: 'INSUFFICIENT_QUESTIONS' });
     expect(await db.select().from(attempts)).toHaveLength(0);
+  });
+  it('disables a mode with a difficulty shortage even when the total pool is large enough', async () => {
+    await db
+      .update(questions)
+      .set({ status: 'ARCHIVED' })
+      .where(eq(questions.difficulty, 'ADVANCED'));
+    const catalog = z
+      .object({
+        data: z.array(
+          z.object({
+            slug: z.string(),
+            modes: z.array(z.object({ mode: z.string(), available: z.boolean() })),
+          }),
+        ),
+      })
+      .parse(await (await request('/api/v1/assessments')).json()).data;
+    const topic = catalog.find((entry) => entry.slug === 'javascript')!;
+    expect(topic.modes.find((mode) => mode.mode === 'COMPETITIVE')!.available).toBe(false);
+    expect(topic.modes.find((mode) => mode.mode === 'EASY')!.available).toBe(true);
+    await expect(
+      runtime.attempts.start(userId, {
+        topicSlug: 'javascript',
+        mode: 'COMPETITIVE',
+        requestKey: randomUUID(),
+      }),
+    ).rejects.toMatchObject({ code: 'INSUFFICIENT_QUESTIONS' });
+    expect(await db.select().from(attempts)).toHaveLength(0);
+    expect((await start('EASY')).questionCount).toBe(10);
   });
   it('delivers PostgreSQL cross-connection leaderboard invalidation after commit', async () => {
     const received = new Promise<unknown>((resolve) => {

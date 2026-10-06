@@ -13,6 +13,6 @@
       "schedule": "0 2 * * *"
     }
   ],
-  "buildCommand": "pnpm db:migrate && pnpm db:release && pnpm build && if [ \"$RUN_PRODUCTION_SMOKE\" = \"1\" ]; then pnpm test:launch; fi",
+  "buildCommand": "pnpm db:migrate && pnpm db:release && if [ -n \"$QUESTION_IMPORT_FILE\" ]; then pnpm db:content; fi && pnpm build && if [ \"$RUN_PRODUCTION_SMOKE\" = \"1\" ]; then pnpm test:launch; fi",
   "installCommand": "pnpm install --frozen-lockfile"
 }

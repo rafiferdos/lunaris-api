@@ -1,7 +1,9 @@
 import { eq, sql } from 'drizzle-orm';
 import type { Database } from '../../db/client.js';
-import { topics, configs, questions, topicMetrics } from '../../db/schema/domain.js';
+import { topics, configs, topicMetrics } from '../../db/schema/domain.js';
 import { scoring } from '../scoring/v1.js';
+import { hasCoverage } from './selection.js';
+import type { Question } from '../questions/schema.js';
 import { assert } from '../../core/errors.js';
 import type { AttemptService } from '../attempts/service.js';
 export function createAssessmentService(db: Database, attempts: AttemptService) {
@@ -10,14 +12,12 @@ export function createAssessmentService(db: Database, attempts: AttemptService) 
       db.select().from(topics).where(eq(topics.active, true)),
       db.select().from(configs),
       db.select().from(topicMetrics).where(eq(topicMetrics.userId, userId)),
-      db
-        .select({
-          topicId: questions.topicId,
-          count: sql<number>`count(distinct ${questions.questionKey})::int`,
-        })
-        .from(questions)
-        .where(eq(questions.status, 'PUBLISHED'))
-        .groupBy(questions.topicId),
+      db.execute<{ topic_id: string; difficulty: Question['difficulty']; count: number }>(sql`
+        select topic_id, difficulty, count(*)::int as count from (
+          select distinct on (question_key) topic_id, difficulty from questions
+          where status = 'PUBLISHED' order by question_key, version desc
+        ) latest group by topic_id, difficulty
+      `),
       attempts.availability(userId),
     ]);
     return topicRows.map((t) => ({
@@ -31,7 +31,14 @@ export function createAssessmentService(db: Database, attempts: AttemptService) 
           scoring: scoring[c.mode],
           available:
             c.policy.enabled &&
-            (bankRows.find((b) => b.topicId === t.id)?.count ?? 0) >= c.policy.questionCount,
+            hasCoverage(
+              Object.fromEntries(
+                bankRows.rows
+                  .filter((b) => b.topic_id === t.id)
+                  .map((b) => [b.difficulty, b.count]),
+              ),
+              c.policy,
+            ),
         })),
       progress: progressRows.find((p) => p.topicId === t.id)?.data ?? null,
       availability,

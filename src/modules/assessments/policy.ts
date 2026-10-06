@@ -24,14 +24,14 @@ export const policies: Record<Mode, Policy> = Object.fromEntries(
   (['EASY', 'MEDIUM', 'COMPETITIVE'] as const).map((mode) => [
     mode,
     {
-      questionCount: 5,
-      durationSeconds: mode === 'EASY' ? 600 : mode === 'MEDIUM' ? 480 : 360,
+      questionCount: mode === 'EASY' ? 10 : 15,
+      durationSeconds: mode === 'EASY' ? 1200 : mode === 'MEDIUM' ? 1800 : 1500,
       distribution:
         mode === 'EASY'
-          ? { FOUNDATIONAL: 4, INTERMEDIATE: 1, ADVANCED: 0 }
+          ? { FOUNDATIONAL: 8, INTERMEDIATE: 2, ADVANCED: 0 }
           : mode === 'MEDIUM'
-            ? { FOUNDATIONAL: 1, INTERMEDIATE: 3, ADVANCED: 1 }
-            : { FOUNDATIONAL: 0, INTERMEDIATE: 2, ADVANCED: 3 },
+            ? { FOUNDATIONAL: 3, INTERMEDIATE: 9, ADVANCED: 3 }
+            : { FOUNDATIONAL: 0, INTERMEDIATE: 6, ADVANCED: 9 },
       editable: mode !== 'COMPETITIVE',
       backNavigation: mode !== 'COMPETITIVE',
       ranked: true,

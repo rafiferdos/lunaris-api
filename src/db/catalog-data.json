@@ -1,0 +1,158 @@
+[
+  {
+    "slug": "javascript",
+    "name": "JavaScript",
+    "description": "Go beyond the syntax. Explore the language of the web.",
+    "category": "TECHNICAL"
+  },
+  {
+    "slug": "typescript",
+    "name": "TypeScript",
+    "description": "Build confidence in types, generics, and safer code.",
+    "category": "TECHNICAL"
+  },
+  {
+    "slug": "react",
+    "name": "React",
+    "description": "Think in components. Master state, hooks, and rendering.",
+    "category": "TECHNICAL"
+  },
+  {
+    "slug": "nextjs",
+    "name": "Next.js",
+    "description": "From server components to thoughtful web architecture.",
+    "category": "TECHNICAL"
+  },
+  {
+    "slug": "nodejs",
+    "name": "Node.js",
+    "description": "Understand the runtime behind scalable applications.",
+    "category": "TECHNICAL"
+  },
+  {
+    "slug": "express",
+    "name": "Express",
+    "description": "Design clear middleware and reliable HTTP services.",
+    "category": "TECHNICAL"
+  },
+  {
+    "slug": "hono",
+    "name": "Hono",
+    "description": "Small, fast services across modern JavaScript runtimes.",
+    "category": "TECHNICAL"
+  },
+  {
+    "slug": "postgresql",
+    "name": "PostgreSQL",
+    "description": "Work confidently with queries, indexes, and transactions.",
+    "category": "TECHNICAL"
+  },
+  {
+    "slug": "rest-apis",
+    "name": "REST APIs",
+    "description": "Design predictable resources and resilient interfaces.",
+    "category": "TECHNICAL"
+  },
+  {
+    "slug": "graphql",
+    "name": "GraphQL",
+    "description": "Reason about schemas, resolvers, and query performance.",
+    "category": "TECHNICAL"
+  },
+  {
+    "slug": "git",
+    "name": "Git",
+    "description": "Navigate collaboration, branching, and version history.",
+    "category": "TECHNICAL"
+  },
+  {
+    "slug": "web-security",
+    "name": "Web Security",
+    "description": "Recognize threats and choose effective defenses.",
+    "category": "TECHNICAL"
+  },
+  {
+    "slug": "testing",
+    "name": "Testing",
+    "description": "Write tests that protect behavior and build confidence.",
+    "category": "TECHNICAL"
+  },
+  {
+    "slug": "system-design",
+    "name": "System Design",
+    "description": "Balance reliability, scale, and architectural tradeoffs.",
+    "category": "TECHNICAL"
+  },
+  {
+    "slug": "problem-solving",
+    "name": "Problem Solving",
+    "description": "Break complex problems into deliberate, testable steps.",
+    "category": "TECHNICAL"
+  },
+  {
+    "slug": "communication",
+    "name": "Communication",
+    "description": "Make complex ideas clear and conversations productive.",
+    "category": "INTERPERSONAL"
+  },
+  {
+    "slug": "conflict-handling",
+    "name": "Conflict Handling",
+    "description": "Find common ground when perspectives differ.",
+    "category": "INTERPERSONAL"
+  },
+  {
+    "slug": "ownership",
+    "name": "Ownership",
+    "description": "Take responsibility and follow through with intention.",
+    "category": "INTERPERSONAL"
+  },
+  {
+    "slug": "decision-making",
+    "name": "Decision Making",
+    "description": "Weigh evidence, uncertainty, and practical tradeoffs.",
+    "category": "INTERPERSONAL"
+  },
+  {
+    "slug": "collaboration",
+    "name": "Collaboration",
+    "description": "Create the conditions for a team to do its best work.",
+    "category": "INTERPERSONAL"
+  },
+  {
+    "slug": "adaptability",
+    "name": "Adaptability",
+    "description": "Respond thoughtfully when plans and priorities change.",
+    "category": "INTERPERSONAL"
+  },
+  {
+    "slug": "accountability",
+    "name": "Accountability",
+    "description": "Build trust through dependable actions.",
+    "category": "INTERPERSONAL"
+  },
+  {
+    "slug": "leadership",
+    "name": "Leadership",
+    "description": "Give direction, develop people, and make room for others.",
+    "category": "INTERPERSONAL"
+  },
+  {
+    "slug": "feedback",
+    "name": "Feedback",
+    "description": "Offer specific observations that lead to growth.",
+    "category": "INTERPERSONAL"
+  },
+  {
+    "slug": "prioritization",
+    "name": "Prioritization",
+    "description": "Focus effort where it makes the greatest difference.",
+    "category": "INTERPERSONAL"
+  },
+  {
+    "slug": "client-communication",
+    "name": "Client Communication",
+    "description": "Set expectations and build productive partnerships.",
+    "category": "INTERPERSONAL"
+  }
+]
