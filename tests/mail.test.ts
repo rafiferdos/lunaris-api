@@ -24,6 +24,11 @@ afterEach(() => vi.restoreAllMocks());
 describe('SMTP delivery boundary', () => {
   it('rejects incomplete, mixed-provider and mismatched Gmail configurations', () => {
     expect(() => loadConfig({ ...base, SMTP_PASSWORD: 'partial' })).toThrow();
+    expect(() => loadConfig({ ...smtpEnv, SMTP_PASSWORD: '    ' })).toThrow();
+    expect(
+      loadConfig({ ...smtpEnv, SMTP_HOST: 'SMTP.GMAIL.COM', SMTP_PASSWORD: 'abcd efgh ijkl mnop' })
+        .SMTP_PASSWORD,
+    ).toBe('abcdefghijklmnop');
     expect(() => loadConfig({ ...smtpEnv, EMAIL_FROM: 'other@gmail.com' })).toThrow();
     expect(() => loadConfig({ ...smtpEnv, RESEND_API_KEY: 'test' })).toThrow();
     expect(() => loadConfig({ ...base, EMAIL_FROM: 'sender@gmail.com' })).toThrow();

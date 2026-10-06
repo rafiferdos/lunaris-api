@@ -12,6 +12,7 @@ export const envSchema = z
     SMTP_HOST: z
       .string()
       .regex(/^[a-z0-9.-]+$/i)
+      .toLowerCase()
       .optional(),
     SMTP_USER: z.email().optional(),
     SMTP_PASSWORD: z.string().min(1).optional(),
@@ -31,8 +32,21 @@ export const envSchema = z
         code: 'custom',
         message: 'Configure exactly one provider: Resend or SMTP with host, user, and password.',
       });
-    if (v.SMTP_HOST === 'smtp.gmail.com' && v.EMAIL_FROM !== v.SMTP_USER)
+    if (
+      v.SMTP_HOST === 'smtp.gmail.com' &&
+      v.EMAIL_FROM?.toLowerCase() !== v.SMTP_USER?.toLowerCase()
+    )
       c.addIssue({ code: 'custom', message: 'Gmail sender must match SMTP_USER.' });
+    if (
+      v.SMTP_HOST === 'smtp.gmail.com' &&
+      v.SMTP_PASSWORD !== undefined &&
+      !v.SMTP_PASSWORD.replace(/\s/g, '')
+    )
+      c.addIssue({
+        code: 'custom',
+        path: ['SMTP_PASSWORD'],
+        message: 'A non-empty Gmail App Password is required.',
+      });
     if (!!(v.RESEND_API_KEY || smtp === 3) !== !!v.EMAIL_FROM)
       c.addIssue({
         code: 'custom',
@@ -67,6 +81,10 @@ export const envSchema = z
   })
   .transform((value) => ({
     ...value,
+    SMTP_PASSWORD:
+      value.SMTP_HOST === 'smtp.gmail.com'
+        ? value.SMTP_PASSWORD?.replace(/\s/g, '')
+        : value.SMTP_PASSWORD,
     FRONTEND_ORIGIN: new URL(value.FRONTEND_ORIGIN).origin,
     BETTER_AUTH_URL: new URL(value.BETTER_AUTH_URL).origin,
   }));
